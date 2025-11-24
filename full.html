@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metro Chaos - Main Menu</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at center, #1a1f3a 0%, #0a0e1a 100%);
+      color: #f4f4f6;
+    }
+    
+    .container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .menu-box {
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 32px;
+      background: rgba(10, 14, 35, 0.95);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      border: 2px solid rgba(79, 209, 197, 0.3);
+    }
+    
+    .title {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    
+    .title h1 {
+      font-size: 48px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #4fd1c5, #667eea);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+      text-shadow: 0 4px 12px rgba(79, 209, 197, 0.3);
+    }
+    
+    .subtitle {
+      font-size: 18px;
+      opacity: 0.8;
+      color: #a0aec0;
+    }
+    
+    .rules-section {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #4fd1c5;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .rule-card {
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .rule-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .rule-card ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 14px;
+      line-height: 1.8;
+      opacity: 0.9;
+    }
+    
+    .rule-card li {
+      margin-bottom: 4px;
+    }
+    
+    .rule-card strong {
+      font-weight: 600;
+    }
+    
+    .core { background: rgba(79, 209, 197, 0.05); border-left: 4px solid #4fd1c5; }
+    .core h3 { color: #4fd1c5; }
+    
+    .money { background: rgba(255, 215, 0, 0.05); border-left: 4px solid #ffd700; }
+    .money h3 { color: #ffd700; }
+    
+    .factory { background: rgba(217, 121, 67, 0.05); border-left: 4px solid #d97943; }
+    .factory h3 { color: #d97943; }
+    
+    .connection { background: rgba(102, 126, 234, 0.05); border-left: 4px solid #667eea; }
+    .connection h3 { color: #667eea; }
+    
+    .advanced { background: rgba(181, 148, 244, 0.05); border-left: 4px solid #b794f4; }
+    .advanced h3 { color: #b794f4; }
+    
+    .fail { background: rgba(252, 129, 129, 0.05); border-left: 4px solid #fc8181; }
+    .fail h3 { color: #fc8181; }
+    
+    .mode-selection {
+      margin-top: 32px;
+    }
+    
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .mode-btn {
+      padding: 24px;
+      border-radius: 16px;
+      border: 3px solid;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: block;
+      color: inherit;
+    }
+    
+    .mode-btn:hover {
+      transform: scale(1.05);
+    }
+    
+    .story-btn {
+      border-color: #667eea;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+    }
+    
+    .story-btn:hover {
+      box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .survival-btn {
+      border-color: #4fd1c5;
+      background: linear-gradient(135deg, rgba(79, 209, 197, 0.2), rgba(56, 178, 172, 0.2));
+    }
+    
+    .survival-btn:hover {
+      box-shadow: 0 12px 30px rgba(79, 209, 197, 0.4);
+    }
+    
+    .mode-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .mode-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .story-title { color: #667eea; }
+    .survival-title { color: #4fd1c5; }
+    
+    .mode-desc {
+      font-size: 13px;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+    
+    .mode-progress {
+      margin-top: 12px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    
+    .tip {
+      text-align: center;
+      opacity: 0.7;
+      font-size: 12px;
+      margin-top: 16px;
+    }
+    
+    @media (max-width: 768px) {
+      .mode-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .title h1 {
+        font-size: 36px;
+      }
+      
+      .menu-box {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="menu-box">
+      
+      <!-- Title -->
+      <div class="title">
+        <h1>🚇 METRO CHAOS 🚇</h1>
+        <p class="subtitle">Build. Connect. Survive.</p>
+      </div>
+
+      <!-- Game Rules Section -->
+      <div class="rules-section">
+        <h2 class="section-title">📖 Game Rules</h2>
+        
+        <!-- Core Mechanics -->
+        <div class="rule-card core">
+          <h3>🎮 Core Mechanics</h3>
+          <ul>
+            <li><strong>Connect Stations:</strong> Click and drag between stations to create rail connections</li>
+            <li><strong>Passengers:</strong> Appear at stations and need to reach their destination</li>
+            <li><strong>Trains:</strong> Automatically pick up passengers and deliver them</li>
+            <li><strong>Max Capacity:</strong> Each train holds <strong>5 passengers</strong> maximum</li>
+            <li><strong>Station Queue:</strong> Each station holds <strong>15 passengers</strong> max (grace period allows more temporarily)</li>
+          </ul>
+        </div>
+
+        <!-- Money System -->
+        <div class="rule-card money">
+          <h3>💰 Money System</h3>
+          <ul>
+            <li><strong>Starting Money:</strong> Each station starts with <strong>$1000</strong></li>
+            <li><strong>Money Drain:</strong> Active stations lose <strong>$2 per second</strong></li>
+            <li><strong>Earn Money:</strong> <strong>$5 per passenger</strong> delivered to a station</li>
+            <li><strong>Station Closes:</strong> When money reaches $0</li>
+            <li><strong>Reopening:</strong> Costs <strong>$200 per station</strong></li>
+          </ul>
+        </div>
+
+        <!-- Factory System -->
+        <div class="rule-card factory">
+          <h3>🏭 Factory System</h3>
+          <ul>
+            <li><strong>Build Factories:</strong> Right-click empty areas, costs <strong>$200</strong> (increases by $100 each)</li>
+            <li><strong>Train Production:</strong> First train in <strong>10 seconds</strong>, then <strong>25 seconds</strong> each</li>
+            <li><strong>Factory Capacity:</strong> Each factory can connect to <strong>5 stations maximum</strong></li>
+            <li><strong>Refueling:</strong> Drag from factory to station to create fuel connection</li>
+            <li><strong>Fuel Mechanic:</strong> Trains start with 100% fuel, lose <strong>35% per station stop</strong></li>
+          </ul>
+        </div>
+
+        <!-- Connection Quality -->
+        <div class="rule-card connection">
+          <h3>🛤️ Connection Quality</h3>
+          <ul>
+            <li><strong>🟢 Green (Fast):</strong> Distance &lt; 150 pixels - trains move at full speed</li>
+            <li><strong>🟡 Yellow (Medium):</strong> Distance 150-300 - trains slightly slower</li>
+            <li><strong>🟠 Orange (Long):</strong> Distance 300-450 - trains much slower</li>
+            <li><strong>🔴 Red (Slow):</strong> Distance &gt; 450 - trains very slow</li>
+          </ul>
+        </div>
+
+        <!-- Advanced Features -->
+        <div class="rule-card advanced">
+          <h3>⭐ Advanced Features</h3>
+          <ul>
+            <li><strong>Merge Stations:</strong> Combine 3+ stations into mega hub, costs <strong>$500</strong></li>
+            <li><strong>Mega Stations:</strong> Higher capacity, can be refueled by factories</li>
+            <li><strong>Grace Period:</strong> New stations get <strong>8 seconds</strong> of unlimited capacity</li>
+            <li><strong>Rush Hour:</strong> Occurs every <strong>60 seconds</strong>, lasts <strong>30 seconds</strong>, spawns <strong>2.5x passengers</strong></li>
+            <li><strong>Combo System:</strong> Serving passengers quickly builds multiplier (+0.1 per serve, max 5.0x)</li>
+            <li><strong>Efficiency:</strong> Based on queue usage - keep queues low for high efficiency</li>
+          </ul>
+        </div>
+
+        <!-- Fail Conditions -->
+        <div class="rule-card fail">
+          <h3>💀 Fail Conditions</h3>
+          <ul>
+            <li><strong>Station Overcrowded:</strong> Any station exceeds its capacity limit</li>
+            <li><strong>Economic Collapse:</strong> 60% or more of stations close (run out of money)</li>
+            <li><strong>Time Limit:</strong> (Story Mode only) Some levels have time limits</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Mode Selection -->
+      <div class="mode-selection">
+        <h2 class="section-title">🎯 Select Game Mode</h2>
+        
+        <div class="mode-grid">
+          <!-- Story Mode -->
+          <a href="levels.html" class="mode-btn story-btn">
+            <div class="mode-icon">📖</div>
+            <div class="mode-title story-title">STORY MODE</div>
+            <div class="mode-desc">
+              • 100 challenging levels<br>
+              • Progressive difficulty<br>
+              • Specific objectives<br>
+              • <strong style="color: #fc8181;">Fail = Restart Level 1!</strong>
+            </div>
+            <div class="mode-progress">
+              Current Progress: Level <span id="storyLevel">1</span>
+            </div>
+          </a>
+
+          <!-- Survival Mode -->
+          <a href="survival.html" class="mode-btn survival-btn">
+            <div class="mode-icon">♾️</div>
+            <div class="mode-title survival-title">SURVIVAL MODE</div>
+            <div class="mode-desc">
+              • Endless gameplay<br>
+              • Increasing difficulty<br>
+              • High score competition<br>
+              • Survive as long as you can!
+            </div>
+            <div class="mode-progress">
+              Best Score: <span id="survivalBest">0</span>
+            </div>
+          </a>
+        </div>
+
+        <div class="tip">
+          Tip: Start with Story Mode to learn the mechanics!
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Load saved progress
+    const storyLevel = parseInt(localStorage.getItem("metroChaosLevel")) || 1;
+    const survivalBest = parseInt(localStorage.getItem("metroChaosEndlessBest")) || 0;
+    
+    document.getElementById("storyLevel").textContent = storyLevel;
+    document.getElementById("survivalBest").textContent = survivalBest;
+  </script>
+</body>
+</html>

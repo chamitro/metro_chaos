@@ -1,0 +1,3573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Metro Manager – Endless Run</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #171c32 0, #050812 60%);
+      color: #f4f4f6;
+    }
+    
+    #hud {
+      position: fixed;
+      top: 10px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 16px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      backdrop-filter: blur(12px);
+      background: rgba(10, 14, 35, 0.75);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+      font-size: 14px;
+      z-index: 10;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #hud .pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      white-space: nowrap;
+    }
+    #hud span.label { opacity: 0.7; margin-right: 4px; }
+
+    #hint {
+      position: fixed;
+      bottom: 10px; left: 50%; transform: translateX(-50%);
+      padding: 6px 12px;
+      border-radius: 999px;
+      backdrop-filter: blur(10px);
+      background: rgba(10, 14, 35, 0.7);
+      font-size: 12px;
+      opacity: 0.9;
+      max-width: 90%;
+      text-align: center;
+      z-index: 9;
+    }
+
+    #gameCanvas { display: block; }
+
+    #overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; z-index: 20;
+    }
+    #overlayContent {
+      padding: 24px 32px;
+      border-radius: 18px;
+      background: rgba(5, 8, 18, 0.92);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+      text-align: center;
+      max-width: 420px;
+      pointer-events: auto;
+    }
+    #overlay h1 { margin-bottom: 8px; font-size: 22px; }
+    #overlay p { margin-bottom: 16px; font-size: 14px; opacity: 0.8; line-height: 1.5; }
+    #overlay .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    #overlay .metric:last-child { border-bottom: none; }
+    #overlay .metric-label { opacity: 0.7; }
+    #overlay .metric-value { font-weight: 600; }
+    #overlay button {
+      padding: 8px 18px;
+      border-radius: 999px; border: none; font-size: 14px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4fd1c5, #667eea);
+      color: #050812; font-weight: 600;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+      margin-top: 8px;
+    }
+    #overlay button:hover { transform: translateY(-1px); }
+    #overlay.hidden { display: none; }
+
+    /* NEW: Tooltip for station/factory actions */
+    #actionTooltip {
+      position: fixed;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(5, 8, 18, 0.95);
+      border: 2px solid rgba(79, 209, 197, 0.5);
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 100;
+      display: none;
+      max-width: 200px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    }
+    #actionTooltip.show { display: block; }
+    
+    /* Selection box for merge mode */
+    .selection-box {
+      position: absolute;
+      border: 2px dashed rgba(102, 126, 234, 0.8);
+      background: rgba(102, 126, 234, 0.15);
+      pointer-events: none;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="pill"><span class="label">Time</span><span id="timeText">0.0</span>s</div>
+    <div class="pill"><span class="label">Score</span><span id="scoreText">0</span></div>
+    <div class="pill"><span class="label">👥 Served</span><span id="servedText">0</span></div>
+    <div class="pill"><span class="label">Best</span><span id="bestScoreText">0</span></div>
+    <div class="pill" style="background: rgba(255, 215, 0, 0.15);"><span class="label">💰 Money</span><span id="moneyText">$0</span></div>
+    <div class="pill"><span class="label">Waiting</span><span id="waitText">0</span></div>
+    <div class="pill"><span class="label">Stations</span><span id="stationsText">0</span></div>
+    <div class="pill"><span class="label">Segments</span><span id="segmentsText">0</span></div>
+    <div class="pill"><span class="label">Trains</span><span id="trainsText">0</span></div>
+    <div class="pill"><span class="label">Factories</span><span id="factoriesText">0</span></div>
+    <div class="pill"><span class="label">Difficulty</span><span id="difficultyText">1.0x</span></div>
+    <div class="pill"><span class="label">Efficiency</span><span id="efficiencyText">50%</span></div>
+<div class="pill" style="background: rgba(255, 200, 0, 0.15);"><span class="label">Combo</span><span id="comboText">×1.0</span></div>
+<div class="pill" id="rushHourPill" style="display: none; background: rgba(255, 50, 50, 0.3);"><span class="label">🚨 RUSH HOUR</span><span id="rushHourText">45s</span></div>
+    <button id="factoryButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #d97943, #c95d2b); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🏭 Build Factory ($200)</button>
+    <button id="reopenButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #48bb78, #38a169); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;">💚 Reopen Station ($200)</button>
+    <button id="mergeButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🔀 Merge Stations ($500)</button>
+  </div>
+
+  <div id="hint">
+    🟢 Fast rails! 🟡 Medium. 🔴 Slow! Max 5 passengers/train. Lose 30% fuel/stop. Drag 🏭→🚉 to refuel ⛽ | ⚠️ Game over if 60% stations close!
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- NEW: Action tooltip -->
+  <div id="actionTooltip"></div>
+
+  <div id="overlay" class="hidden">
+    <div id="overlayContent">
+      <h1 id="overlayTitle">Metro Manager – Endless Run</h1>
+      <p id="overlayMessage"></p>
+      <div id="overlayMetrics"></div>
+      <button id="overlayButton">Start Run</button>
+    </div>
+  </div>
+
+  <script>
+    // ----- Canvas setup -----
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+
+    // Background / atmosphere
+    let cityLights = [];
+    let terrainRivers = [];
+    let terrainIslands = [];
+    let timeOfDay = 0; // 0..1
+    const DAY_NIGHT_DURATION = 120; // seconds per full cycle
+
+    // ===== ENHANCED GRAPHICS: Particle System =====
+    let particles = [];
+    
+    // Helper to convert hex color to rgba string
+    function hexToRgba(hex, alpha = 1) {
+      const h = hex.replace('#', '');
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    
+    function spawnParticle(x, y, color, size, life, vx = 0, vy = 0, type = 'circle') {
+      // Convert hex colors to rgba if needed
+      let finalColor = color;
+      if (color.startsWith('#')) {
+        finalColor = hexToRgba(color, 1);
+      }
+      particles.push({
+        x, y, color: finalColor, size, life, maxLife: life,
+        vx: vx + (Math.random() - 0.5) * 30,
+        vy: vy + (Math.random() - 0.5) * 30,
+        type,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 2
+      });
+    }
+    
+    function spawnBurstParticles(x, y, color, count = 12, size = 4) {
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+        const speed = 60 + Math.random() * 40;
+        spawnParticle(x, y, color, size + Math.random() * 3, 0.6 + Math.random() * 0.4,
+          Math.cos(angle) * speed, Math.sin(angle) * speed);
+      }
+    }
+    
+    function spawnSparkles(x, y, color, count = 6) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 20 + Math.random() * 30;
+        spawnParticle(x, y, color, 2 + Math.random() * 2, 0.4 + Math.random() * 0.3,
+          Math.cos(angle) * speed, Math.sin(angle) * speed - 20, 'sparkle');
+      }
+    }
+    
+    function updateParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 30 * dt; // gravity
+        p.vx *= 0.98;
+        p.vy *= 0.98;
+        p.rotation += p.rotationSpeed * dt;
+        
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+    
+    function renderParticles() {
+      for (const p of particles) {
+        const lifeRatio = p.life / p.maxLife;
+        const alpha = lifeRatio * 0.9;
+        const size = p.size * (0.3 + lifeRatio * 0.7);
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        
+        if (p.type === 'sparkle') {
+          // Star sparkle
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          for (let i = 0; i < 4; i++) {
+            const angle = (Math.PI / 2) * i;
+            ctx.lineTo(Math.cos(angle) * size * 2, Math.sin(angle) * size * 2);
+            ctx.lineTo(Math.cos(angle + Math.PI/4) * size * 0.5, Math.sin(angle + Math.PI/4) * size * 0.5);
+          }
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // Simple glowing circle - use solid colors to avoid gradient issues
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Outer glow
+          ctx.globalAlpha = alpha * 0.3;
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        ctx.restore();
+      }
+    }
+    
+    // ===== ENHANCED GRAPHICS: Glow Helper =====
+    function drawGlow(x, y, radius, color, intensity = 1) {
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = radius * intensity;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.3 * intensity;
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    
+    function drawSoftGlow(x, y, radius, color) {
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      grad.addColorStop(0, color.replace(')', ', 0.4)').replace('rgb', 'rgba'));
+      grad.addColorStop(0.5, color.replace(')', ', 0.15)').replace('rgb', 'rgba'));
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+    function generateCityLightsAndTerrain() {
+      // City lights
+      cityLights = [];
+      const count = 220;
+      for (let i = 0; i < count; i++) {
+        const y = height * (0.35 + Math.random() * 0.55);
+        const depth = (y - height * 0.35) / (height * 0.55);
+        cityLights.push({
+          x: Math.random() * width,
+          y: y,
+          baseAlpha: 0.15 + Math.random() * 0.35 + depth * 0.15,
+          radius: 1 + Math.random() * 1.5 + depth * 0.4,
+          speed: 0.6 + Math.random() * 1.2,
+          phase: Math.random() * Math.PI * 2,
+          color: Math.random() > 0.85 ? [255, 200, 120] : [200, 220, 255],
+          depth: depth
+        });
+      }
+
+      // Terrain: one big river + a few islands
+      terrainRivers = [];
+      terrainIslands = [];
+
+      const river = {
+        start: { x: -width * 0.2, y: height * 0.3 },
+        cp:    { x: width * 0.5,  y: height * 0.45 },
+        end:   { x: width * 1.2, y: height * 0.8 },
+        width: 90
+      };
+      terrainRivers.push(river);
+
+      // Helper to sample along that curve
+      function riverPoint(t) {
+        const x = (1 - t) * (1 - t) * river.start.x +
+                  2 * (1 - t) * t * river.cp.x +
+                  t * t * river.end.x;
+        const y = (1 - t) * (1 - t) * river.start.y +
+                  2 * (1 - t) * t * river.cp.y +
+                  t * t * river.end.y;
+        return { x, y };
+      }
+
+      // Create a few islands along/near the river
+      const islandCount = 5;
+      for (let i = 0; i < islandCount; i++) {
+        const t = 0.15 + Math.random() * 0.7;
+        const p = riverPoint(t);
+        const offsetAngle = Math.random() * Math.PI * 2;
+        const offsetDist = 40 + Math.random() * 70;
+        const cx = p.x + Math.cos(offsetAngle) * offsetDist;
+        const cy = p.y + Math.sin(offsetAngle) * offsetDist;
+        const r = 35 + Math.random() * 35;
+
+        terrainIslands.push({ x: cx, y: cy, r });
+      }
+    }
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      generateCityLightsAndTerrain();
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // ----- HUD -----
+    const timeText = document.getElementById("timeText");
+    const scoreText = document.getElementById("scoreText");
+    const bestScoreText = document.getElementById("bestScoreText");
+    const moneyText = document.getElementById("moneyText");
+    const waitText = document.getElementById("waitText");
+    const stationsText = document.getElementById("stationsText");
+    const segmentsText = document.getElementById("segmentsText");
+    const trainsText = document.getElementById("trainsText");
+    const factoriesText = document.getElementById("factoriesText");
+    const difficultyText = document.getElementById("difficultyText");
+    const efficiencyText = document.getElementById("efficiencyText");
+    const comboText = document.getElementById("comboText");
+    const rushHourPill = document.getElementById("rushHourPill");
+    const rushHourText = document.getElementById("rushHourText");
+    const closedWarningPill = document.getElementById("closedWarningPill");
+    const closedWarningText = document.getElementById("closedWarningText");
+
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayMessage = document.getElementById("overlayMessage");
+    const overlayMetrics = document.getElementById("overlayMetrics");
+    const overlayButton = document.getElementById("overlayButton");
+
+    // NEW: Action tooltip
+    const actionTooltip = document.getElementById("actionTooltip");
+    const mergeButton = document.getElementById("mergeButton");
+    const factoryButton = document.getElementById("factoryButton");
+    const reopenButton = document.getElementById("reopenButton");
+
+    // ----- Game state -----
+    let running = false;
+    let elapsed = 0;
+    let score = 0;
+    let bestScore = parseInt(localStorage.getItem("metroManagerBest")) || 0;
+    let servedPassengers = 0;
+    let totalWaiting = 0;
+
+    // NEW: Player money
+    let playerMoney = 0;
+const MAX_REOPEN_STATIONS = 10;
+let REOPEN_BUNDLE_COST = 150;  // will increase by +100 each use
+
+let TRAIN_FACTORY_COST = 200;     // will go up by +100 each build
+let MERGE_COST = 500;             // will go up by +100 each merge
+
+    const MAX_MERGE_STATIONS = 10;
+
+    // ----- Connection Quality System -----
+    const SHORT_CONNECTION = 150;
+    const MEDIUM_CONNECTION = 300;
+    const LONG_CONNECTION = 450;
+    
+    const FACTORY_MAX_CONNECTIONS = 5;
+    
+    // Train fuel system
+    const MAX_TRAIN_FUEL = 100;
+    const FUEL_LOSS_PER_STATION = 35; // Lose 30% fuel per station stop
+    const LOW_FUEL_THRESHOLD = 45; // Below this, train slows down
+    const CRITICAL_FUEL_THRESHOLD = 25; // Below this, train is very slow
+
+    // ----- Station Merging System -----
+    let mergeMode = false;
+    let selectedStationsForMerge = [];
+    
+    // Drag-to-select box for merge mode
+    let isSelectingBox = false;
+    let selectBoxStart = { x: 0, y: 0 };
+    let selectBoxEnd = { x: 0, y: 0 };
+    
+    // ----- Factory Build Mode -----
+    let factoryBuildMode = false;
+    
+    // ----- Reopen Mode -----
+    let reopenMode = false;
+
+    let stations = [];
+    let trains = [];
+    let adjacency = new Map();
+    let edgeMeta = new Map();
+
+    // NEW: Train factories
+    let trainFactories = [];
+    const FACTORY_TRAIN_INTERVAL = 60; // seconds per train
+    const FACTORY_RADIUS = 25;
+
+    // Camera zoom
+    // Camera zoom
+let viewScale = 1;
+let targetViewScale = 1;
+
+// Zoom out a bit as more stations exist
+function updateCameraZoom() {
+  const count = stations.length;
+
+  if (count <= 0) {
+    targetViewScale = 1;
+    return;
+  }
+
+  // 1.0 = normal, 0.6 = zoomed out
+  const maxZoomOut = 0.6;
+  const maxStationsForZoomOut = 25;  // after this, we’re at full zoom-out
+
+  const t = Math.min(count / maxStationsForZoomOut, 1); // 0..1
+  const desiredScale = 1 - t * (1 - maxZoomOut);        // 1 -> 0.6
+
+  targetViewScale = desiredScale;
+}
+
+
+
+    // Visual effects
+    let screenFlash = 0;
+    let newStationPulse = null;
+    let cameraFocusTimer = 0;
+    let focusedStation = null;
+
+    // Leaderboard
+    let leaderboard = JSON.parse(localStorage.getItem("metroManagerLeaderboard")) || [];
+
+
+    // Station roles
+    const STATION_ROLES = ["Residential", "Commercial", "Industrial", "Hub", "Transit"];
+    function roleColor(role) {
+      switch (role) {
+        case "Residential": return "#4fd1c5";
+        case "Commercial": return "#f6ad55";
+        case "Industrial": return "#fc8181";
+        case "Hub": return "#b794f4";
+        case "Transit": return "#63b3ed";
+        default: return "#a0aec0";
+      }
+    }
+
+    // NEW: Station economy
+    const BASE_STATION_MONEY = 1000;
+    const MONEY_DRAIN_RATE = 2; // per second when active
+    const MONEY_GAIN_PER_PASSENGER = 5;
+
+    // Difficulty scaling
+    const BASE_SPAWN_INTERVAL = 5.0; // Slower initial spawn (was 3.0)
+    const MIN_SPAWN_INTERVAL = 0.8;
+    const BASE_STATION_INTERVAL = 15;
+    const MIN_STATION_INTERVAL = 8;
+    const BASE_TRAIN_INTERVAL = 12;
+    const MIN_TRAIN_INTERVAL = 6;
+    const BASE_QUEUE_LIMIT = 20; // Higher initial limit (was 15)
+    const MIN_QUEUE_LIMIT = 8;
+
+    function difficultyFactor() {
+      return 1 + elapsed / 60;
+    }
+
+    function currentSpawnInterval() {
+      const base = BASE_SPAWN_INTERVAL;
+      const min = MIN_SPAWN_INTERVAL;
+      const df = difficultyFactor();
+      return Math.max(min, base / df);
+    }
+
+    function currentStationInterval() {
+      const base = BASE_STATION_INTERVAL;
+      const min = MIN_STATION_INTERVAL;
+      const df = difficultyFactor();
+      return Math.max(min, base / Math.sqrt(df));
+    }
+
+    function currentTrainInterval() {
+      const base = BASE_TRAIN_INTERVAL;
+      const min = MIN_TRAIN_INTERVAL;
+      const df = difficultyFactor();
+      return Math.max(min, base / Math.sqrt(df));
+    }
+
+    function currentQueueLimit(station) {
+      // Mega stations use their custom capacity
+      if (station.isMegaStation && station.capacity) {
+        return station.graceTimer > 0 ? 9999 : station.capacity;
+      }
+      
+      // Fixed capacity of 15 passengers for all stations
+      const limit = 15;
+      return station.graceTimer > 0 ? 9999 : limit;
+    }
+
+    // NEW: Efficiency & Combo system
+    let currentEfficiency = 50;
+    let comboMultiplier = 1.0;
+    let comboTimer = 0;
+    let peakCombo = 1.0;
+    const COMBO_DECAY_TIME = 3.0;
+    const COMBO_INCREMENT = 0.1;
+    const MAX_COMBO = 5.0;
+
+    function calculateNetworkEfficiency() {
+      if (stations.length === 0) return 100;
+      let totalCapacity = 0;
+      let totalUsed = 0;
+      for (const st of stations) {
+        if (st.closed) continue; // Don't count closed stations
+        const limit = currentQueueLimit(st);
+        totalCapacity += limit;
+        totalUsed += st.queue.length;
+      }
+      if (totalCapacity === 0) return 100;
+      const usage = totalUsed / totalCapacity;
+      return clamp(100 - usage * 100, 0, 100);
+    }
+
+    function updateComboSystem(dt) {
+      if (comboTimer > 0) {
+        comboTimer -= dt;
+        if (comboTimer <= 0) {
+          comboMultiplier = Math.max(1.0, comboMultiplier - 0.5);
+          comboTimer = 0;
+        }
+      }
+    }
+
+    function increaseCombo() {
+      comboMultiplier = Math.min(MAX_COMBO, comboMultiplier + COMBO_INCREMENT);
+      comboTimer = COMBO_DECAY_TIME;
+      if (comboMultiplier > peakCombo) peakCombo = comboMultiplier;
+    }
+
+    // NEW: Rush Hour system
+    let isRushHour = false;
+    let rushHourTimer = 0;
+    const RUSH_HOUR_INTERVAL = 60;
+    const RUSH_HOUR_DURATION = 30;
+    const RUSH_HOUR_MULTIPLIER = 2.5;
+
+    function updateRushHour(dt) {
+      if (!isRushHour) {
+        if (elapsed > 0 && elapsed % RUSH_HOUR_INTERVAL < dt) {
+          isRushHour = true;
+          rushHourTimer = RUSH_HOUR_DURATION;
+          screenFlash = 0.3;
+        }
+      } else {
+        rushHourTimer -= dt;
+        if (rushHourTimer <= 0) {
+          isRushHour = false;
+          rushHourTimer = 0;
+        }
+      }
+    }
+
+    // NEW: Threat system (meteors, floods)
+    let activeThreats = [];
+
+    function updateThreats(dt) {
+      for (let i = activeThreats.length - 1; i >= 0; i--) {
+        const threat = activeThreats[i];
+        threat.timer -= dt;
+        if (threat.timer <= 0) {
+          if (threat.type === "meteor") {
+            handleMeteorImpact(threat);
+          } else if (threat.type === "flood") {
+            handleFloodImpact(threat);
+          }
+          activeThreats.splice(i, 1);
+        }
+      }
+
+      if (Math.random() < dt * 0.01 && elapsed > 30) {
+        spawnRandomThreat();
+      }
+    }
+
+    function spawnRandomThreat() {
+      const type = Math.random() < 0.5 ? "meteor" : "flood";
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      activeThreats.push({
+        type,
+        x,
+        y,
+        timer: 3.0,
+        radius: 50
+      });
+    }
+
+    function handleMeteorImpact(threat) {
+      for (const st of stations) {
+        const dx = st.x - threat.x;
+        const dy = st.y - threat.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < threat.radius + 20) {
+          st.queue = st.queue.slice(0, Math.floor(st.queue.length / 2));
+        }
+      }
+      screenFlash = 0.5;
+    }
+
+    function handleFloodImpact(threat) {
+      for (const train of trains) {
+        const dx = train.x - threat.x;
+        const dy = train.y - threat.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < threat.radius) {
+          train.speed *= 0.5;
+        }
+      }
+    }
+
+    // NEW: Station Economy System
+    function updateStationEconomy(dt) {
+      for (const st of stations) {
+        if (st.closed) continue;
+
+        // Drain money over time
+        st.money -= MONEY_DRAIN_RATE * dt;
+
+        // Check for bankruptcy
+        if (st.money <= 0) {
+          st.money = 0;
+          st.closed = true;
+          st.closedTime = elapsed;
+          
+          // ENHANCED: Station closing particles (red/gray)
+          spawnBurstParticles(st.x, st.y, 'rgba(255, 80, 80, 1)', 12, 5);
+          screenFlash = 0.2;
+          
+          // Transfer passengers to nearby stations
+          if (st.queue.length > 0) {
+            const nearbyStations = stations.filter(s => !s.closed && s !== st);
+            if (nearbyStations.length > 0) {
+              const target = nearbyStations[Math.floor(Math.random() * nearbyStations.length)];
+              target.queue.push(...st.queue);
+            }
+            st.queue = [];
+          }
+        }
+      }
+    }
+
+function screenToWorld(mx, my) {
+  const cx = width / 2;
+  const cy = height / 2;
+
+  // Reverse the camera transform
+  const wx = (mx - cx) / viewScale + cx;
+  const wy = (my - cy) / viewScale + cy;
+
+  return { x: wx, y: wy };
+}
+
+    function checkEconomicCollapse() {
+      const activeStations = stations.filter(st => !st.closed);
+      if (stations.length > 0 && activeStations.length === 0) {
+        running = false;
+        showGameOver(null, "economic_collapse");
+      }
+    }
+
+    // ----- Station & Passenger spawning -----
+    let nextId = 1;
+    let nextPassengerId = 1;
+    let spawnTimer = 0;
+    let stationTimer = 0;
+    // trainTimer removed - trains only from factories now
+
+    function spawnInitialCity() {
+      const count = 4;
+      const margin = 80;
+      const MIN_DISTANCE = 150; // Minimum distance between initial stations
+      
+      // Spawn initial stations with proper spacing
+      for (let i = 0; i < count; i++) {
+        let x, y, attempts = 0;
+        let validPosition = false;
+        
+        while (!validPosition && attempts < 100) {
+          x = margin + Math.random() * (width - 2 * margin);
+          y = margin + Math.random() * (height - 2 * margin);
+          
+          validPosition = true;
+          for (const st of stations) {
+            const dx = x - st.x;
+            const dy = y - st.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < MIN_DISTANCE) {
+              validPosition = false;
+              break;
+            }
+          }
+          attempts++;
+        }
+        
+        const role = STATION_ROLES[i % STATION_ROLES.length];
+        stations.push(createStation(x, y, role));
+      }
+      
+      // NEW: Start with 2 factories instead of trains
+      const initialFactories = 2;
+      for (let i = 0; i < initialFactories; i++) {
+        let x, y, attempts = 0;
+        let validPosition = false;
+        
+        while (!validPosition && attempts < 100) {
+          x = margin + Math.random() * (width - 2 * margin);
+          y = margin + Math.random() * (height - 2 * margin);
+          
+          validPosition = true;
+          // Check distance from stations
+          for (const st of stations) {
+            const dx = x - st.x;
+            const dy = y - st.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 100) {
+              validPosition = false;
+              break;
+            }
+          }
+          
+          // Check distance from other factories
+          for (const factory of trainFactories) {
+            const dx = x - factory.x;
+            const dy = y - factory.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 150) {
+              validPosition = false;
+              break;
+            }
+          }
+          
+          attempts++;
+        }
+        
+        const factory = createTrainFactory(x, y);
+        factory.productionTimer = FACTORY_TRAIN_INTERVAL * 0.5; // Start halfway through production
+        trainFactories.push(factory);
+      }
+      updateCameraZoom();
+    }
+
+    function createStation(x, y, role) {
+      return {
+        id: nextId++,
+        x,
+        y,
+        role,
+        queue: [],
+        graceTimer: 8,
+        spawnAnimation: 0.5,
+        money: BASE_STATION_MONEY, // NEW
+        closed: false, // NEW
+        closedTime: 0,  // NEW
+        isMegaStation: false, // NEW: for merged stations
+        capacity: 15, // NEW: base capacity
+        spawnDelay: 10 // NEW: passengers won't spawn for 10 seconds
+      };
+    }
+
+    // ----- Station Merging System -----
+    function toggleMergeMode() {
+  if (playerMoney < MERGE_COST) {
+    showActionTooltip("Not enough money! Need $" + MERGE_COST, width/2, 80);
+    return;
+  }
+
+  mergeMode = !mergeMode;
+  selectedStationsForMerge = [];
+  isSelectingBox = false;
+
+  if (mergeMode) {
+    mergeButton.textContent = "❌ Cancel Merge";
+    mergeButton.style.background = "linear-gradient(135deg, #fc8181, #f56565)";
+    showActionTooltip("Drag to select multiple stations to merge", width/2, 80);
+  } else {
+    mergeButton.textContent = "🔀 Merge Stations ($" + MERGE_COST + ")";
+    mergeButton.style.background = "linear-gradient(135deg, #667eea, #764ba2)";
+  }
+}
+
+
+    function updateMergeButton() {
+  if (!mergeMode) return;
+
+  if (selectedStationsForMerge.length >= 2) {
+    mergeButton.textContent = `✅ MERGE ${selectedStationsForMerge.length} STATIONS ($${MERGE_COST})`;
+    mergeButton.style.background = "linear-gradient(135deg, #48bb78, #38a169)";
+  } else {
+    mergeButton.textContent = "❌ Cancel Merge";
+    mergeButton.style.background = "linear-gradient(135deg, #fc8181, #f56565)";
+  }
+}
+
+
+function mergeStations() {
+  if (selectedStationsForMerge.length < 2) {
+    showActionTooltip("Select at least 2 stations!", width/2, 80);
+    return;
+  }
+  if (playerMoney < MERGE_COST) {
+  showActionTooltip("Not enough money!", width/2, 80);
+  return;
+}
+
+playerMoney -= MERGE_COST;
+
+// 🔼 Increase cost for next merge
+MERGE_COST += 100;
+mergeButton.textContent = "🔀 Merge Stations ($" + MERGE_COST + ")";
+
+
+  const merged = selectedStationsForMerge;
+  const mergedIds = merged.map(s => s.id);
+
+  // ---- CALCULATE CENTER ----
+  const centerX = merged.reduce((s, st) => s + st.x, 0) / merged.length;
+  const centerY = merged.reduce((s, st) => s + st.y, 0) / merged.length;
+
+  // ---- COLLECT PASSENGERS + MONEY ----
+  const allPassengers = [];
+  let totalMoney = 0;
+
+  for (const st of merged) {
+    allPassengers.push(...st.queue);
+    totalMoney += st.money;
+  }
+
+  // ---- CREATE MEGA STATION ----
+  const mega = createStation(centerX, centerY, "Mega Hub");
+  mega.isMegaStation = true;
+  mega.capacity = 15 * merged.length;
+  mega.money = totalMoney;
+  mega.queue = allPassengers;
+  mega.graceTimer = 0;
+
+  // ---- DETERMINE ALL UNIQUE NEIGHBORS ----
+  const neighbors = new Set();
+  for (const st of merged) {
+    const list = adjacency.get(st.id) || [];
+    for (const nid of list) {
+      if (!mergedIds.includes(nid)) neighbors.add(nid);
+    }
+  }
+
+  // ---- CLEAR OLD EDGES ----
+  for (const key of [...edgeMeta.keys()]) {
+    const [a, b] = key.split("-").map(Number);
+    if (mergedIds.includes(a) || mergedIds.includes(b)) {
+      edgeMeta.delete(key);
+    }
+  }
+
+  // ---- REMOVE MERGED FROM ADJACENCY ----
+  for (const id of mergedIds) adjacency.delete(id);
+  for (const [id, list] of adjacency.entries()) {
+    adjacency.set(id, list.filter(n => !mergedIds.includes(n)));
+  }
+
+  // ---- ADD MEGA TO ADJACENCY ----
+  adjacency.set(mega.id, []);
+
+  for (const nid of neighbors) {
+    adjacency.get(mega.id).push(nid);
+    if (!adjacency.has(nid)) adjacency.set(nid, []);
+    adjacency.get(nid).push(mega.id);
+
+    // Create NEW EDGE metadata based on distance
+    const other = stations.find(s => s.id === nid);
+    if (other) {
+      const dist = Math.hypot(mega.x - other.x, mega.y - other.y);
+      edgeMeta.set(edgeKey2(mega.id, nid), { distance: dist });
+    }
+  }
+
+  // ---- REMOVE STATIONS ----
+  for (const st of merged) {
+    const idx = stations.indexOf(st);
+    if (idx !== -1) stations.splice(idx, 1);
+  }
+  stations.push(mega);
+
+  // ---------------------------------------------------
+  // 🚆 **TRAIN SAFE RECOVERY SYSTEM** – never stuck again
+  // ---------------------------------------------------
+  for (const train of trains) {
+    const exists = id => stations.some(s => s.id === id);
+
+    // 1. FIX PASSENGERS
+    for (const p of train.passengers) {
+      if (mergedIds.includes(p.dest)) p.dest = mega.id;
+      if (mergedIds.includes(p.source)) p.source = mega.id;
+    }
+
+    // 2. FIX train.currentStation
+    if (!exists(train.currentStation) || mergedIds.includes(train.currentStation)) {
+      train.currentStation = mega.id;
+      train.x = mega.x;
+      train.y = mega.y;
+      train.targetStation = null;
+      train.progress = 0;
+      continue;
+    }
+
+    // 3. FIX train.targetStation
+    if (train.targetStation && (!exists(train.targetStation) || mergedIds.includes(train.targetStation))) {
+      train.targetStation = null;
+      train.progress = 0;
+    }
+
+    // 4. FIX if on invalid edge
+    if (train.targetStation) {
+      const k1 = edgeKey2(train.currentStation, train.targetStation);
+      if (!edgeMeta.has(k1)) {
+        train.targetStation = null;
+        train.progress = 0;
+      }
+    }
+
+    // 5. FIX isolated stations (no neighbors)
+    const neigh = adjacency.get(train.currentStation) || [];
+    if (neigh.length === 0) {
+      // teleport safely to a station with neighbors
+      const safe = stations.find(s => (adjacency.get(s.id) || []).length > 0);
+      if (safe) {
+        train.currentStation = safe.id;
+        train.x = safe.x;
+        train.y = safe.y;
+      } else {
+        // if absolutely no edges exist (unlikely), put at mega
+        train.currentStation = mega.id;
+        train.x = mega.x;
+        train.y = mega.y;
+      }
+      train.targetStation = null;
+      train.progress = 0;
+    }
+  }
+
+  // ---- VISUAL & EXIT ----
+  screenFlash = 0.3;
+  newStationPulse = { x: centerX, y: centerY, radius: 0, alpha: 1 };
+
+  mergeMode = false;
+  selectedStationsForMerge = [];
+  mergeButton.textContent = "🔀 Merge Stations ($" + MERGE_COST + ")";
+  mergeButton.style.background = "linear-gradient(135deg,#667eea,#764ba2)";
+
+  updateCameraZoom();
+}
+
+
+    function createPassenger(sourceId, destId) {
+      return { id: nextPassengerId++, source: sourceId, dest: destId };
+    }
+
+    function spawnPassengers(dt) {
+      spawnTimer += dt;
+      const interval = currentSpawnInterval();
+      const multiplier = isRushHour ? RUSH_HOUR_MULTIPLIER : 1.0;
+      const effectiveInterval = interval / multiplier;
+
+      while (spawnTimer >= effectiveInterval) {
+        spawnTimer -= effectiveInterval;
+        if (stations.length < 2) continue;
+
+        // Only spawn at active stations that have finished their spawn delay
+        const activeStations = stations.filter(st => !st.closed && (!st.spawnDelay || st.spawnDelay <= 0));
+        if (activeStations.length < 2) continue;
+
+        const source = activeStations[Math.floor(Math.random() * activeStations.length)];
+        
+        // NEW: Role-based destination selection
+        let possibleDests = [];
+        
+        if (source.role === "Residential") {
+          // Residential -> Commercial (60%), Industrial (30%), Hub/Transit (10%)
+          const commercial = activeStations.filter(st => st !== source && st.role === "Commercial");
+          const industrial = activeStations.filter(st => st !== source && st.role === "Industrial");
+          const other = activeStations.filter(st => st !== source && (st.role === "Hub" || st.role === "Transit"));
+          
+          possibleDests = [
+            ...commercial, ...commercial, ...commercial, ...commercial, ...commercial, ...commercial,
+            ...industrial, ...industrial, ...industrial,
+            ...other
+          ];
+        } else if (source.role === "Commercial") {
+          // Commercial -> Residential (70%), Industrial (20%), Hub/Transit (10%)
+          const residential = activeStations.filter(st => st !== source && st.role === "Residential");
+          const industrial = activeStations.filter(st => st !== source && st.role === "Industrial");
+          const other = activeStations.filter(st => st !== source && (st.role === "Hub" || st.role === "Transit"));
+          
+          possibleDests = [
+            ...residential, ...residential, ...residential, ...residential, ...residential, ...residential, ...residential,
+            ...industrial, ...industrial,
+            ...other
+          ];
+        } else if (source.role === "Industrial") {
+          // Industrial -> Residential (80%), Commercial (10%), Hub/Transit (10%)
+          const residential = activeStations.filter(st => st !== source && st.role === "Residential");
+          const commercial = activeStations.filter(st => st !== source && st.role === "Commercial");
+          const other = activeStations.filter(st => st !== source && (st.role === "Hub" || st.role === "Transit"));
+          
+          possibleDests = [
+            ...residential, ...residential, ...residential, ...residential, ...residential, ...residential, ...residential, ...residential,
+            ...commercial,
+            ...other
+          ];
+        } else {
+          // Hub/Transit -> anywhere (completely random)
+          possibleDests = activeStations.filter(st => st !== source);
+        }
+        
+        // Fallback to any station if no role-based matches
+        if (possibleDests.length === 0) {
+          possibleDests = activeStations.filter(st => st !== source);
+        }
+        
+        if (possibleDests.length === 0) continue;
+        
+        const dest = possibleDests[Math.floor(Math.random() * possibleDests.length)];
+        source.queue.push(createPassenger(source.id, dest.id));
+      }
+    }
+
+function spawnStationsOverTime(dt) {
+  stationTimer += dt;
+  const interval = currentStationInterval();
+  if (stationTimer >= interval) {
+    stationTimer = 0;
+    const margin = 60;
+    const MIN_DISTANCE = 120; // Minimum distance between stations
+    
+    let x, y, attempts = 0;
+    let validPosition = false;
+    
+    // Try to find a position that's not too close to existing stations
+    while (!validPosition && attempts < 50) {
+      x = margin + Math.random() * (width - 2 * margin);
+      y = margin + Math.random() * (height - 2 * margin);
+      
+      validPosition = true;
+      for (const st of stations) {
+        const dx = x - st.x;
+        const dy = y - st.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MIN_DISTANCE) {
+          validPosition = false;
+          break;
+        }
+      }
+      
+      // Also check distance from factories
+      for (const factory of trainFactories) {
+        const dx = x - factory.x;
+        const dy = y - factory.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 80) {
+          validPosition = false;
+          break;
+        }
+      }
+      
+      attempts++;
+    }
+    
+    // If we couldn't find a good position after 50 attempts, use the last position anyway
+    const role = STATION_ROLES[Math.floor(Math.random() * STATION_ROLES.length)];
+    const newStation = createStation(x, y, role);
+    newStation.spawnAnimation = 1.0;
+    stations.push(newStation);
+
+    newStationPulse = { x, y, radius: 0, alpha: 1 };
+    cameraFocusTimer = 2;
+    focusedStation = newStation;
+    
+    // ENHANCED: Spawn particles for new station
+    spawnBurstParticles(x, y, roleColor(role), 15, 5);
+
+    // (no zoom code here anymore)
+    updateCameraZoom();
+  }
+}
+
+
+
+    // NEW: Train Factory System
+    function createTrainFactory(x, y) {
+      return {
+        x,
+        y,
+        productionTimer: 0,
+        animation: 1.0,
+        trainsProduced: 0, // Track how many trains produced
+        smokeParticles: [] // For cartoon smoke effect
+      };
+    }
+
+    function updateTrainFactories(dt) {
+      for (const factory of trainFactories) {
+        if (factory.animation > 0) {
+          factory.animation -= dt * 2;
+          if (factory.animation < 0) factory.animation = 0;
+        }
+
+        // Update smoke particles
+        for (let i = factory.smokeParticles.length - 1; i >= 0; i--) {
+          const particle = factory.smokeParticles[i];
+          particle.y -= dt * 30;
+          particle.x += Math.sin(particle.phase + elapsed * 2) * dt * 20;
+          particle.alpha -= dt * 0.5;
+          particle.size += dt * 15;
+          if (particle.alpha <= 0) {
+            factory.smokeParticles.splice(i, 1);
+          }
+        }
+
+        // Add smoke while producing
+        if (Math.random() < dt * 3) {
+          factory.smokeParticles.push({
+            x: factory.x,
+            y: factory.y - FACTORY_RADIUS,
+            alpha: 0.6,
+            size: 8,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+
+        factory.productionTimer += dt;
+        
+        // First train is fast (10s), subsequent trains are slower (25s)
+        const interval = factory.trainsProduced === 0 ? 10 : 25;
+        
+        if (factory.productionTimer >= interval) {
+          factory.productionTimer = 0;
+          factory.trainsProduced++;
+          
+          // Find nearest active station
+          let nearest = null;
+          let minDist = Infinity;
+          for (const st of stations) {
+            if (st.closed) continue;
+            const dx = st.x - factory.x;
+            const dy = st.y - factory.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+              minDist = dist;
+              nearest = st;
+            }
+          }
+
+          if (nearest) {
+            trains.push(createTrain(factory.x, factory.y, nearest.id));
+            
+            // ENHANCED: Train spawn particles
+            spawnBurstParticles(factory.x, factory.y - 20, 'rgba(255, 200, 100, 1)', 10, 4);
+            screenFlash = 0.1;
+            screenFlash = 0.2;
+            
+            // Big smoke puff on train production
+            for (let i = 0; i < 5; i++) {
+              factory.smokeParticles.push({
+                x: factory.x + (Math.random() - 0.5) * 20,
+                y: factory.y - FACTORY_RADIUS,
+                alpha: 0.8,
+                size: 12,
+                phase: Math.random() * Math.PI * 2
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // ----- Trains -----
+    function createTrain(x, y, stationId) {
+      return {
+        x,
+        y,
+        currentStation: stationId,
+        targetStation: null,
+        passengers: [],
+        progress: 0,
+        speed: 0,
+        fuel: MAX_TRAIN_FUEL, // NEW: Train starts with full fuel
+        stopsCount: 0, // NEW: Track how many stations visited since refuel
+        idleTime: 0 // NEW: Track how long train has been stuck without moving
+      };
+    }
+
+    // Find shortest path using BFS (Breadth-First Search)
+    function findPath(startId, endId) {
+      if (startId === endId) return [endId];
+      
+      const queue = [[startId]];
+      const visited = new Set([startId]);
+      
+      while (queue.length > 0) {
+        const path = queue.shift();
+        const currentId = path[path.length - 1];
+        
+        const neighbors = adjacency.get(currentId) || [];
+        
+        for (const neighborId of neighbors) {
+          if (visited.has(neighborId)) continue;
+          
+          const neighborStation = stations.find(s => s.id === neighborId);
+          if (!neighborStation || neighborStation.closed) continue;
+          
+          const newPath = [...path, neighborId];
+          
+          if (neighborId === endId) {
+            return newPath; // Found path!
+          }
+          
+          visited.add(neighborId);
+          queue.push(newPath);
+        }
+      }
+      
+      return null; // No path found
+    }
+
+    // Track how many trains are using each edge (for load balancing)
+    function getEdgeLoad(stationId1, stationId2) {
+      let count = 0;
+      for (const train of trains) {
+        if (train.targetStation === null) continue;
+        
+        // Check if this train is using this edge
+        if ((train.currentStation === stationId1 && train.targetStation === stationId2) ||
+            (train.currentStation === stationId2 && train.targetStation === stationId1)) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+    // Choose next station with load balancing - prefer less congested routes
+    function chooseNextStation(currentStationId, destinationId, validNeighbors) {
+      if (validNeighbors.length === 0) return null;
+      if (validNeighbors.length === 1) return validNeighbors[0];
+      
+      // If destination is directly adjacent, go there
+      if (validNeighbors.includes(destinationId)) {
+        return destinationId;
+      }
+      
+      // Find all neighbors that have a path to the destination
+      const neighborsWithPaths = [];
+      for (const neighborId of validNeighbors) {
+        const path = findPath(neighborId, destinationId);
+        if (path) {
+          neighborsWithPaths.push({
+            neighborId,
+            pathLength: path.length
+          });
+        }
+      }
+      
+      // If no path found to destination, just pick any valid neighbor (fallback)
+      if (neighborsWithPaths.length === 0) {
+        return chooseFastestNeighbor(currentStationId, validNeighbors);
+      }
+      
+      // Score each valid neighbor based on path length, connection quality, and load
+      let bestNeighbor = neighborsWithPaths[0].neighborId;
+      let bestScore = -Infinity;
+      
+      for (const {neighborId, pathLength} of neighborsWithPaths) {
+        // Get connection quality to this neighbor
+        const edgeKey1 = `${currentStationId}-${neighborId}`;
+        const edgeKey2 = `${neighborId}-${currentStationId}`;
+        const meta = edgeMeta.get(edgeKey1) || edgeMeta.get(edgeKey2);
+        const connectionDist = meta ? (meta.distance || meta.dist || 200) : 200;
+        
+        // Count trains on this edge
+        const edgeLoad = getEdgeLoad(currentStationId, neighborId);
+        
+        // Speed bonus for connection quality
+        let speedBonus = 0;
+        if (connectionDist < SHORT_CONNECTION) {
+          speedBonus = 100; // Green rails
+        } else if (connectionDist < MEDIUM_CONNECTION) {
+          speedBonus = 45; // Yellow rails
+        } else if (connectionDist < LONG_CONNECTION) {
+          speedBonus = 15;  // Orange rails
+        }
+        
+        // Score components:
+        // 1. Shorter path is better (negative path length)
+        // 2. Connection speed bonus
+        // 3. Load balancing: avoid congested routes
+        const score = (-pathLength * 100) + speedBonus - (edgeLoad * 150);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestNeighbor = neighborId;
+        }
+      }
+      
+      return bestNeighbor;
+    }
+
+    // For trains without passengers - just pick least congested fast route
+    function chooseFastestNeighbor(currentStationId, validNeighbors) {
+      if (validNeighbors.length === 0) return null;
+      if (validNeighbors.length === 1) return validNeighbors[0];
+      
+      let bestNeighbor = validNeighbors[0];
+      let bestScore = -Infinity;
+      
+      for (const neighborId of validNeighbors) {
+        const edgeKey1 = `${currentStationId}-${neighborId}`;
+        const edgeKey2 = `${neighborId}-${currentStationId}`;
+        const meta = edgeMeta.get(edgeKey1) || edgeMeta.get(edgeKey2);
+        const distance = meta ? (meta.distance || meta.dist || 200) : 200;
+        
+        const edgeLoad = getEdgeLoad(currentStationId, neighborId);
+        
+        let speedBonus = 0;
+        if (distance < SHORT_CONNECTION) {
+          speedBonus = 100;
+        } else if (distance < MEDIUM_CONNECTION) {
+          speedBonus = 45;
+        } else if (distance < LONG_CONNECTION) {
+          speedBonus = 15;
+        }
+        
+        const score = speedBonus - (edgeLoad * 80);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestNeighbor = neighborId;
+        }
+      }
+      
+      return bestNeighbor;
+    }
+
+    function updateTrains(dt) {
+      for (const train of trains) {
+        if (train.targetStation === null) {
+          // Increment idle time
+          train.idleTime = (train.idleTime || 0) + dt;
+          
+          const current = stations.find(s => s.id === train.currentStation);
+          if (!current || current.closed) {
+            // Station closed or missing, find new station
+            const activeStations = stations.filter(st => !st.closed);
+            if (activeStations.length > 0) {
+              const newStation = activeStations[Math.floor(Math.random() * activeStations.length)];
+              train.currentStation = newStation.id;
+              train.x = newStation.x;
+              train.y = newStation.y;
+            }
+            continue;
+          }
+
+          const neighbors = adjacency.get(train.currentStation) || [];
+          const validNeighbors = neighbors.filter(nid => {
+            const nStation = stations.find(s => s.id === nid);
+            return nStation && !nStation.closed;
+          });
+
+          // CRITICAL FIX: If train has no valid neighbors (isolated after merge), teleport it
+          if (validNeighbors.length === 0) {
+            // Log for debugging
+            console.log(`Train stuck at station ${train.currentStation} - no valid neighbors. Teleporting...`);
+            
+            // Find any connected station and move train there
+            const connectedStations = stations.filter(st => {
+              if (st.closed || st.id === train.currentStation) return false;
+              const neighbs = adjacency.get(st.id) || [];
+              return neighbs.length > 0; // Has at least one connection
+            });
+            
+            if (connectedStations.length > 0) {
+              // Teleport to a random connected station
+              const newStation = connectedStations[Math.floor(Math.random() * connectedStations.length)];
+              console.log(`  → Teleported to station ${newStation.id}`);
+              train.currentStation = newStation.id;
+              train.x = newStation.x;
+              train.y = newStation.y;
+              train.idleTime = 0;
+              // Drop all passengers since we're teleporting
+              train.passengers = [];
+            } else {
+              console.log(`  → No connected stations found! Network may be completely broken.`);
+            }
+            continue;
+          }
+
+          // NEW: Low fuel logic - prioritize going to refuel stations
+          const needsFuel = train.fuel < LOW_FUEL_THRESHOLD;
+          let targetId = null;
+          
+          if (needsFuel && train.passengers.length === 0) {
+            // Find nearest refuel station (mega station or factory-connected station)
+            const refuelStations = validNeighbors.filter(nid => {
+              const nStation = stations.find(s => s.id === nid);
+              if (!nStation) return false;
+              
+              const hasFactoryConnection = nStation.factoryConnections && nStation.factoryConnections.length > 0;
+              return nStation.isMegaStation || hasFactoryConnection;
+            });
+            
+            if (refuelStations.length > 0) {
+              targetId = refuelStations[0]; // Go to first available refuel station
+            }
+          }
+          
+          // Normal behavior if not seeking fuel or has passengers
+          if (!targetId) {
+            // NEW: Pick up ALL passengers until train is full (capacity 5)
+            while (current.queue.length > 0 && train.passengers.length < 5) {
+              const p = current.queue.shift();
+              train.passengers.push(p);
+
+              // NEW: Station gains money when passenger boards
+              current.money += MONEY_GAIN_PER_PASSENGER;
+            }
+
+            if (train.passengers.length > 0) {
+              const dest = train.passengers[0].dest;
+              
+              // Check if destination still exists
+              const destStation = stations.find(s => s.id === dest);
+              if (!destStation || destStation.closed) {
+                // Destination doesn't exist anymore, drop this passenger
+                train.passengers.shift();
+                
+                // Try again with next passenger or just pick any route
+                if (train.passengers.length > 0) {
+                  const newDest = train.passengers[0].dest;
+                  targetId = chooseNextStation(train.currentStation, newDest, validNeighbors);
+                } else {
+                  targetId = chooseFastestNeighbor(train.currentStation, validNeighbors);
+                }
+              } else {
+                // Use proper pathfinding with load balancing
+                targetId = chooseNextStation(train.currentStation, dest, validNeighbors);
+              }
+            } else {
+              // No passengers: pick least congested fast route
+              targetId = chooseFastestNeighbor(train.currentStation, validNeighbors);
+            }
+          }
+          
+          // Safety check: if no valid target found, stay at current station
+          if (!targetId) {
+            if (train.idleTime > 5) {
+              console.log(`Train at station ${train.currentStation} can't find route. Neighbors: [${validNeighbors.join(', ')}]`);
+            }
+            continue;
+          }
+          
+          train.targetStation = targetId;
+          train.idleTime = 0; // Reset idle time when train starts moving
+
+          const edgeKey = edgeKey2(train.currentStation, train.targetStation);
+          const meta = edgeMeta.get(edgeKey);
+          let baseSpeed = 100;
+          
+          if (meta) {
+            const distance = meta.distance || meta.dist || 200;
+            
+            // Connection quality speed bonuses
+            if (distance < SHORT_CONNECTION) {
+              // Short connection: 1.5x speed bonus
+              baseSpeed = 200;
+            } else if (distance < MEDIUM_CONNECTION) {
+              // Medium connection: normal speed
+              baseSpeed = 130;
+            } else if (distance < LONG_CONNECTION) {
+              // Long connection: 0.7x speed penalty
+              baseSpeed = 90;
+            } else {
+              // Very long connection: heavy penalty
+              baseSpeed = 70;
+            }
+          }
+          
+          // Apply fuel modifier to speed
+          let fuelMultiplier = 1.0;
+          if (train.fuel < CRITICAL_FUEL_THRESHOLD) {
+            fuelMultiplier = 0.4; // 60% speed loss when critically low
+          } else if (train.fuel < LOW_FUEL_THRESHOLD) {
+            fuelMultiplier = 0.7; // 30% speed loss when low
+          }
+          
+          // NEW: Passenger load speed penalty
+          // 0 passengers = 1.0x speed
+          // 1 passenger = 0.95x speed
+          // 2 passengers = 0.90x speed
+          // 3 passengers = 0.85x speed
+          // 4 passengers = 0.80x speed
+          // 5 passengers = 0.75x speed (full capacity)
+          const passengerLoadMultiplier = 1.0 - (train.passengers.length * 0.05);
+          
+          train.speed = baseSpeed * fuelMultiplier * passengerLoadMultiplier;
+
+          train.progress = 0;
+        } else {
+          const current = stations.find(s => s.id === train.currentStation);
+          const target = stations.find(s => s.id === train.targetStation);
+          if (!current || !target || target.closed) {
+            // Target closed or missing, cancel journey
+            train.targetStation = null;
+            train.progress = 0;
+            continue;
+          }
+          
+          // CRITICAL: Verify the edge still exists between current and target
+          const edgeKey1 = `${train.currentStation}-${train.targetStation}`;
+          const edgeKey2 = `${train.targetStation}-${train.currentStation}`;
+          if (!edgeMeta.has(edgeKey1) && !edgeMeta.has(edgeKey2)) {
+            // Edge was deleted (e.g., stations were merged), cancel journey
+            train.x = current.x;
+            train.y = current.y;
+            train.targetStation = null;
+            train.progress = 0;
+            continue;
+          }
+
+          train.progress += train.speed * dt;
+
+          const dx = target.x - current.x;
+          const dy = target.y - current.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const frac = Math.min(train.progress / dist, 1);
+
+          train.x = current.x + dx * frac;
+          train.y = current.y + dy * frac;
+
+          if (frac >= 1) {
+            train.currentStation = train.targetStation;
+            train.targetStation = null;
+            train.progress = 0;
+
+            // NEW: Fuel system - lose fuel on each station stop
+            const arrivedStation = stations.find(s => s.id === train.currentStation);
+            
+            if (arrivedStation) {
+              // Check if this station is connected to a factory OR is a mega station
+              const hasFactoryConnection = arrivedStation.factoryConnections && arrivedStation.factoryConnections.length > 0;
+              
+              if (hasFactoryConnection || arrivedStation.isMegaStation) {
+                // REFUEL at factory-connected station or mega station
+                train.fuel = MAX_TRAIN_FUEL;
+                train.stopsCount = 0;
+              } else {
+                // LOSE FUEL at regular station
+                train.fuel = Math.max(0, train.fuel - FUEL_LOSS_PER_STATION);
+                train.stopsCount++;
+              }
+            }
+
+            for (let i = train.passengers.length - 1; i >= 0; i--) {
+              const p = train.passengers[i];
+              if (p.dest === train.currentStation) {
+                train.passengers.splice(i, 1);
+                const pointsEarned = Math.floor(10 * comboMultiplier);
+                score += pointsEarned;
+                servedPassengers++;
+                
+                // NEW: Player earns money when passenger is delivered
+                playerMoney += MONEY_GAIN_PER_PASSENGER;
+                
+                increaseCombo();
+                screenFlash = 0.15;
+                
+                // ENHANCED: Celebration particles
+                const st = stations.find(s => s.id === train.currentStation);
+                if (st) {
+                  spawnSparkles(st.x, st.y - 20, 'rgba(79, 209, 197, 1)', 5);
+                  if (comboMultiplier >= 2) {
+                    spawnBurstParticles(st.x, st.y, 'rgba(255, 215, 0, 1)', 6, 3);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ----- Graph & edges -----
+    function edgeKey2(a, b) {
+      return a < b ? `${a}-${b}` : `${b}-${a}`;
+    }
+
+    function addEdge(a, b) {
+      if (!adjacency.has(a)) adjacency.set(a, []);
+      if (!adjacency.has(b)) adjacency.set(b, []);
+      if (!adjacency.get(a).includes(b)) adjacency.get(a).push(b);
+      if (!adjacency.get(b).includes(a)) adjacency.get(b).push(a);
+
+      const key = edgeKey2(a, b);
+      if (edgeMeta.has(key)) return;
+
+      const stA = stations.find(s => s.id === a);
+      const stB = stations.find(s => s.id === b);
+      if (!stA || !stB) return;
+
+      const dx = stB.x - stA.x;
+      const dy = stB.y - stA.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      edgeMeta.set(key, { distance: dist, createdAt: elapsed });
+    }
+    
+    // ----- Factory capacity helpers -----
+function factoryConnectionCount(factory) {
+  return (factory.stationConnections ? factory.stationConnections.length : 0);
+}
+
+function factoryHasFreeCapacity(factory) {
+  return factoryConnectionCount(factory) < FACTORY_MAX_CONNECTIONS;
+}
+
+
+    // ----- Mouse / drawing -----
+    let isDragging = false;
+    let dragStartStation = null;
+    let dragStartFactory = null; // NEW: Track if dragging from factory
+    let dragX = 0, dragY = 0;
+
+    canvas.addEventListener("mousedown", e => {
+      const rect = canvas.getBoundingClientRect();
+      let sx = e.clientX - rect.left;
+let sy = e.clientY - rect.top;
+let { x: mx, y: my } = screenToWorld(sx, sy);
+
+
+      // REOPEN MODE: Click closed station to reopen
+
+      
+      // Removed: Old single-click reopen (now uses drag selection box in reopen mode)
+      
+      // FACTORY BUILD MODE: Click empty space to build
+      if (factoryBuildMode) {
+        attemptBuildFactory(mx, my);
+        factoryBuildMode = false;
+        updateFactoryButton();
+        return;
+      }
+
+      // MERGE MODE: Drag to select multiple stations
+      if (mergeMode) {
+        // Start selection box
+        isSelectingBox = true;
+        selectBoxStart = { x: mx, y: my };
+        selectBoxEnd = { x: mx, y: my };
+        return;
+      }
+      
+      // REOPEN MODE: Drag to select multiple CLOSED stations
+if (reopenMode) {
+  isSelectingBoxReopen = true;
+  selectBoxStartReopen = { x: mx, y: my };
+  selectBoxEndReopen   = { x: mx, y: my };
+  selectedStationsForReopen = [];
+  return;
+}
+
+
+      // Check for active station to start drag
+      for (const st of stations) {
+        if (st.closed) continue;
+        const dx = mx - st.x;
+        const dy = my - st.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 20) {
+          isDragging = true;
+          dragStartStation = st;
+          dragStartFactory = null;
+          dragX = mx;
+          dragY = my;
+          return;
+        }
+      }
+      
+      // NEW: Check for factory to start drag
+      for (const factory of trainFactories) {
+        const dx = mx - factory.x;
+        const dy = my - factory.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < FACTORY_RADIUS) {
+          isDragging = true;
+          dragStartFactory = factory;
+          dragStartStation = null;
+          dragX = mx;
+          dragY = my;
+          return;
+        }
+      }
+    });
+
+    canvas.addEventListener("mousemove", e => {
+      const rect = canvas.getBoundingClientRect();
+      let sx = e.clientX - rect.left;
+let sy = e.clientY - rect.top;
+let { x: mx, y: my } = screenToWorld(sx, sy);
+
+
+      // Update selection box in merge mode
+      if (isSelectingBox) {
+        selectBoxEnd = { x: mx, y: my };
+        return;
+      }
+
+      // Update selection box in reopen mode
+      if (isSelectingBoxReopen) {
+        selectBoxEndReopen = { x: mx, y: my };
+        return;
+      }
+
+      // Removed: Old hover tooltip for closed stations (now uses drag selection)
+
+      if (isDragging) {
+        dragX = mx;
+        dragY = my;
+      }
+    });
+
+    canvas.addEventListener("mouseup", e => {
+      const rect = canvas.getBoundingClientRect();
+      let sx = e.clientX - rect.left;
+      let sy = e.clientY - rect.top;
+      let { x: mx, y: my } = screenToWorld(sx, sy);
+
+      // Handle selection box completion in reopen mode
+      if (isSelectingBoxReopen) {
+        isSelectingBoxReopen = false;
+        
+        // Calculate selection box bounds
+        const minX = Math.min(selectBoxStartReopen.x, selectBoxEndReopen.x);
+        const maxX = Math.max(selectBoxStartReopen.x, selectBoxEndReopen.x);
+        const minY = Math.min(selectBoxStartReopen.y, selectBoxEndReopen.y);
+        const maxY = Math.max(selectBoxStartReopen.y, selectBoxEndReopen.y);
+        
+        // Select all CLOSED stations within the box
+        // Select all CLOSED stations within the box (cap at 10)
+selectedStationsForReopen = [];
+for (const st of stations) {
+  if (!st.closed) continue; // Only closed stations
+  if (st.x >= minX && st.x <= maxX && st.y >= minY && st.y <= maxY) {
+    if (selectedStationsForReopen.length < MAX_REOPEN_STATIONS) {
+      selectedStationsForReopen.push(st);
+    }
+  }
+}
+
+if (selectedStationsForReopen.length > 0) {
+  const totalCost = REOPEN_BUNDLE_COST; // fixed cost
+  if (playerMoney >= totalCost) {
+    // Reopen all selected stations
+    for (const st of selectedStationsForReopen) {
+      st.closed = false;
+      st.money = BASE_STATION_MONEY / 2;
+      st.queue = [];
+      newStationPulse = { x: st.x, y: st.y, radius: 0, alpha: 1 };
+    }
+
+    playerMoney -= totalCost;
+    screenFlash = 0.4;
+    showActionTooltip(
+      `Reopened ${selectedStationsForReopen.length} station${selectedStationsForReopen.length > 1 ? "s" : ""} for $${totalCost}!`,
+      mx, my - 40
+    );
+		// 🔼 Increase cost for next reopen
+REOPEN_BUNDLE_COST += 100;
+updateReopenButton();
+
+
+    selectedStationsForReopen = [];
+    reopenMode = false;
+    updateReopenButton();
+  } else {
+    showActionTooltip(
+      `Need $${totalCost} to reopen up to ${MAX_REOPEN_STATIONS} stations! (Have $${playerMoney})`,
+      mx, my - 40
+    );
+  }
+} else {
+  showActionTooltip("No closed stations selected", mx, my - 40);
+}
+
+return;
+
+      }
+
+      // Handle selection box completion in merge mode
+      if (isSelectingBox) {
+        isSelectingBox = false;
+        
+        // Calculate selection box bounds
+        const minX = Math.min(selectBoxStart.x, selectBoxEnd.x);
+        const maxX = Math.max(selectBoxStart.x, selectBoxEnd.x);
+        const minY = Math.min(selectBoxStart.y, selectBoxEnd.y);
+        const maxY = Math.max(selectBoxStart.y, selectBoxEnd.y);
+        
+        // Select all stations within the box
+        selectedStationsForMerge = [];
+        for (const st of stations) {
+          if (st.closed) continue;
+          if (st.x >= minX && st.x <= maxX && st.y >= minY && st.y <= maxY) {
+            if (selectedStationsForMerge.length < MAX_MERGE_STATIONS) {
+              selectedStationsForMerge.push(st);
+            }
+          }
+        }
+        
+        if (selectedStationsForMerge.length > 0) {
+          showActionTooltip(`Selected ${selectedStationsForMerge.length} station${selectedStationsForMerge.length > 1 ? 's' : ''}`, mx, my - 40);
+        } else {
+          showActionTooltip("No stations selected", mx, my - 40);
+        }
+        
+        updateMergeButton();
+        return;
+      }
+
+      if (!isDragging) return;
+      isDragging = false;
+
+      // Handle station-to-station connections
+      if (dragStartStation) {
+        for (const st of stations) {
+          if (st === dragStartStation || st.closed) continue;
+          const dx = mx - st.x;
+          const dy = my - st.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 20) {
+            addEdge(dragStartStation.id, st.id);
+            break;
+          }
+        }
+        dragStartStation = null;
+      }
+      
+      // NEW: Handle factory-to-station connections
+      // NEW: Handle factory-to-station connections (MAX 5 per factory)
+if (dragStartFactory) {
+
+  // Ensure list exists
+  if (!dragStartFactory.stationConnections) {
+    dragStartFactory.stationConnections = [];
+  }
+
+  // 🚫 If factory already has 5 links, block immediately
+  if (!factoryHasFreeCapacity(dragStartFactory)) {
+    showActionTooltip(`Factory is full (max ${FACTORY_MAX_CONNECTIONS} stations)`, mx, my - 40);
+    dragStartFactory = null;
+    return;
+  }
+
+  for (const st of stations) {
+    if (st.closed) continue;
+    const dx = mx - st.x;
+    const dy = my - st.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 20) {
+
+      // Don’t double-connect same station
+      if (dragStartFactory.stationConnections.includes(st.id)) {
+        showActionTooltip("This station is already fueled by that factory", mx, my - 40);
+        break;
+      }
+
+      // 🚫 Re-check capacity right before adding (safe guard)
+      if (!factoryHasFreeCapacity(dragStartFactory)) {
+        showActionTooltip(`Factory reached ${FACTORY_MAX_CONNECTIONS} connections`, mx, my - 40);
+        break;
+      }
+
+      // Mark this station as connected to a factory
+      if (!st.factoryConnections) st.factoryConnections = [];
+      st.factoryConnections.push(dragStartFactory);
+
+      // Reverse connection
+      dragStartFactory.stationConnections.push(st.id);
+
+      screenFlash = 0.2;
+      showActionTooltip(
+        `Connected factory (${factoryConnectionCount(dragStartFactory)}/${FACTORY_MAX_CONNECTIONS})`,
+        mx, my - 40
+      );
+      break;
+    }
+  }
+
+  dragStartFactory = null;
+}
+    });
+
+    // NEW: Right-click to build factory
+    // Right-click as alternative to factory button
+    canvas.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      if (!running) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      let sx = e.clientX - rect.left;
+let sy = e.clientY - rect.top;
+let { x: mx, y: my } = screenToWorld(sx, sy);
+
+      // Right-click still works to build factory quickly
+      attemptBuildFactory(mx, my);
+    });
+
+    // NEW: Factory building
+    function attemptBuildFactory(x, y) {
+      // Check if too close to existing factories
+      for (const factory of trainFactories) {
+        const dx = x - factory.x;
+        const dy = y - factory.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < FACTORY_RADIUS * 3) {
+          return; // Too close
+        }
+      }
+
+      if (playerMoney >= TRAIN_FACTORY_COST) {
+  playerMoney -= TRAIN_FACTORY_COST;
+  trainFactories.push(createTrainFactory(x, y));
+
+  // 🔼 Increase cost for next factory
+  TRAIN_FACTORY_COST += 100;
+  updateFactoryButton();
+
+  screenFlash = 0.3;
+}
+
+    }
+
+    // NEW: Tooltip functions
+    function showActionTooltip(text, x, y) {
+      actionTooltip.textContent = text;
+      actionTooltip.style.left = (x + 20) + "px";
+      actionTooltip.style.top = (y - 20) + "px";
+      actionTooltip.classList.add("show");
+    }
+
+    function hideActionTooltip() {
+      actionTooltip.classList.remove("show");
+    }
+
+    // NEW: Reopen mode selection box (like merge mode)
+    var isSelectingBoxReopen = false;
+    var selectBoxStartReopen = null;
+    var selectBoxEndReopen = null;
+    var selectedStationsForReopen = [];
+
+    // ----- Merge Button -----
+    mergeButton.addEventListener("click", () => {
+      if (!running) return;
+      
+      if (!mergeMode) {
+        toggleMergeMode();
+      } else if (selectedStationsForMerge.length >= 2) {
+        mergeStations();
+      } else {
+        toggleMergeMode(); // Cancel if not enough selected
+      }
+    });
+    
+    // ----- Factory Button -----
+    factoryButton.addEventListener("click", () => {
+      if (!running) return;
+      
+      if (playerMoney < TRAIN_FACTORY_COST) {
+        showActionTooltip("Not enough money! Need $" + TRAIN_FACTORY_COST, width/2, 80);
+        return;
+      }
+      
+      factoryBuildMode = !factoryBuildMode;
+      
+      if (factoryBuildMode) {
+        // Cancel other modes
+        mergeMode = false;
+        reopenMode = false;
+        selectedStationsForMerge = [];
+        updateMergeButton();
+        updateReopenButton();
+        
+        factoryButton.textContent = "❌ Cancel Build";
+        factoryButton.style.background = "linear-gradient(135deg, #fc8181, #f56565)";
+        showActionTooltip("Click on empty space to build factory", width/2, 80);
+      } else {
+        factoryButton.textContent = "🏭 Build Factory ($" + TRAIN_FACTORY_COST + ")";
+        factoryButton.style.background = "linear-gradient(135deg, #d97943, #c95d2b)";
+      }
+    });
+    
+    // ----- Reopen Button -----
+    reopenButton.addEventListener("click", () => {
+      if (!running) return;
+      
+      reopenMode = !reopenMode;
+      
+      if (reopenMode) {
+        // Cancel other modes
+        mergeMode = false;
+        factoryBuildMode = false;
+        selectedStationsForMerge = [];
+        selectedStationsForReopen = [];
+        updateMergeButton();
+        updateFactoryButton();
+        
+        reopenButton.textContent = "❌ Cancel Reopen";
+        reopenButton.style.background = "linear-gradient(135deg, #fc8181, #f56565)";
+        showActionTooltip("Drag to select closed stations (💀) to reopen", width/2, 80);
+      } else {
+        selectedStationsForReopen = [];
+        updateReopenButton();
+      }
+    });
+    
+    function updateFactoryButton() {
+      factoryButton.textContent = "🏭 Build Factory ($" + TRAIN_FACTORY_COST + ")";
+      factoryButton.style.background = "linear-gradient(135deg, #d97943, #c95d2b)";
+    }
+    
+    function updateReopenButton() {
+      const closedStations = stations.filter(st => st.closed);
+      if (closedStations.length > 0) {
+        reopenButton.style.display = "block";
+        if (reopenMode) {
+          reopenButton.textContent = "❌ Cancel Reopen";
+          reopenButton.style.background = "linear-gradient(135deg, #fc8181, #f56565)";
+        } else {
+          reopenButton.textContent =
+  `💚 Reopen (up to ${MAX_REOPEN_STATIONS}) — $${REOPEN_BUNDLE_COST}`;
+          reopenButton.style.background = "linear-gradient(135deg, #48bb78, #38a169)";
+        }
+      } else {
+        reopenButton.style.display = "none";
+      }
+    }
+
+    // ----- Reset -----
+    function resetRun() {
+      stations = [];
+      trains = [];
+      trainFactories = []; // NEW
+      adjacency.clear();
+      edgeMeta.clear();
+      elapsed = 0;
+      score = 0;
+      servedPassengers = 0;
+      totalWaiting = 0;
+      playerMoney = 0; // NEW
+      spawnTimer = 0;
+      stationTimer = 0;
+      // trainTimer removed - trains only from factories
+      nextId = 1;
+      nextPassengerId = 1;
+      viewScale = 1;
+      targetViewScale = 1;
+      screenFlash = 0;
+      newStationPulse = null;
+      cameraFocusTimer = 0;
+      focusedStation = null;
+      currentEfficiency = 50;
+      comboMultiplier = 1.0;
+      comboTimer = 0;
+      peakCombo = 1.0;
+      isRushHour = false;
+      rushHourTimer = 0;
+      activeThreats = [];
+      
+      TRAIN_FACTORY_COST = 200;
+  MERGE_COST = 500;
+      
+      // Reset merge mode
+      mergeMode = false;
+      selectedStationsForMerge = [];
+      mergeButton.textContent = "🔀 Merge Stations ($" + MERGE_COST + ")";
+      mergeButton.style.background = "linear-gradient(135deg, #667eea, #764ba2)";
+      
+      // Reset factory mode
+      factoryBuildMode = false;
+      updateFactoryButton();
+      
+      // Reset reopen mode
+      reopenMode = false;
+      updateReopenButton();
+
+      spawnInitialCity();
+    }
+
+    // ----- Leaderboard -----
+    function addToLeaderboard(time, served, stationCount, segmentCount) {
+      leaderboard.push({ time, score: served, stations: stationCount, segments: segmentCount });
+      leaderboard.sort((a, b) => b.score - a.score);
+      leaderboard = leaderboard.slice(0, 10);
+      localStorage.setItem("metroManagerLeaderboard", JSON.stringify(leaderboard));
+
+      const rank = leaderboard.findIndex(e => e.score === served && e.time === time) + 1;
+      return rank;
+    }
+
+    // ----- Render -----
+    function applyBackgroundByDifficulty(df) {
+      const t = (df - 1) / 4;
+      const clamped = clamp(t, 0, 1);
+
+      let dayBase = { r: 23, g: 28, b: 50 };
+      let nightBase = { r: 5, g: 8, b: 18 };
+
+      let stormBase = { r: 10, g: 5, b: 15 };
+
+      const cycleFactor = 0.5 - 0.5 * Math.cos(timeOfDay * Math.PI * 2);
+
+      const r = Math.round((1 - clamped) * (dayBase.r * (1 - cycleFactor) + nightBase.r * cycleFactor) +
+                           clamped * stormBase.r);
+      const g = Math.round((1 - clamped) * (dayBase.g * (1 - cycleFactor) + nightBase.g * cycleFactor) +
+                           clamped * stormBase.g);
+      const b = Math.round((1 - clamped) * (dayBase.b * (1 - cycleFactor) + nightBase.b * cycleFactor) +
+                           clamped * stormBase.b);
+
+      document.body.style.background = `radial-gradient(circle at top, rgb(${r + 10}, ${g + 10}, ${b + 10}) 0%, rgb(${r}, ${g}, ${b}) 60%)`;
+    }
+
+function render() {
+  const df = difficultyFactor();
+  applyBackgroundByDifficulty(df);
+
+  // Reset transform and clear
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+	
+  // --- Camera transform (zoom around screen center) ---
+  ctx.save();
+  const cx = width / 2;
+  const cy = height / 2;
+  ctx.translate(cx, cy);
+  ctx.scale(viewScale, viewScale);
+  ctx.translate(-cx, -cy);
+
+  // City lights with twinkle and ENHANCED GLOW
+  for (const light of cityLights) {
+    const twinkle = 0.5 + 0.5 * Math.sin(elapsed * light.speed + light.phase);
+    const alpha = light.baseAlpha * twinkle;
+    
+    // Soft glow halo
+    const glowRadius = light.radius * 4;
+    const glowGrad = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, glowRadius);
+    glowGrad.addColorStop(0, `rgba(255, 220, 150, ${alpha * 0.4})`);
+    glowGrad.addColorStop(0.5, `rgba(255, 200, 100, ${alpha * 0.15})`);
+    glowGrad.addColorStop(1, 'rgba(255, 200, 100, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(light.x, light.y, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Core light
+    ctx.fillStyle = `rgba(255, 240, 200, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(light.x, light.y, light.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Terrain: river with ENHANCED water effects
+  for (const river of terrainRivers) {
+    // Outer glow
+    ctx.strokeStyle = "rgba(60, 140, 220, 0.15)";
+    ctx.lineWidth = river.width + 40;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(river.start.x, river.start.y);
+    ctx.quadraticCurveTo(river.cp.x, river.cp.y, river.end.x, river.end.y);
+    ctx.stroke();
+    
+    // Main river body
+    ctx.strokeStyle = "rgba(70, 130, 190, 0.35)";
+    ctx.lineWidth = river.width;
+    ctx.beginPath();
+    ctx.moveTo(river.start.x, river.start.y);
+    ctx.quadraticCurveTo(river.cp.x, river.cp.y, river.end.x, river.end.y);
+    ctx.stroke();
+    
+    // River highlights (animated shimmer)
+    ctx.strokeStyle = `rgba(150, 200, 255, ${0.1 + 0.05 * Math.sin(elapsed * 0.5)})`;
+    ctx.lineWidth = river.width * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(river.start.x, river.start.y);
+    ctx.quadraticCurveTo(river.cp.x, river.cp.y, river.end.x, river.end.y);
+    ctx.stroke();
+  }
+
+  // Islands with ENHANCED terrain effects
+  for (const island of terrainIslands) {
+    // Outer glow
+    const outerGlow = ctx.createRadialGradient(island.x, island.y, island.r * 0.5, island.x, island.y, island.r * 1.5);
+    outerGlow.addColorStop(0, "rgba(80, 120, 70, 0.3)");
+    outerGlow.addColorStop(0.7, "rgba(50, 90, 40, 0.15)");
+    outerGlow.addColorStop(1, "rgba(30, 60, 30, 0)");
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.arc(island.x, island.y, island.r * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Main island
+    const grad = ctx.createRadialGradient(island.x - island.r * 0.2, island.y - island.r * 0.2, 0, island.x, island.y, island.r);
+    grad.addColorStop(0, "rgba(90, 130, 70, 0.5)");
+    grad.addColorStop(0.6, "rgba(60, 100, 50, 0.4)");
+    grad.addColorStop(1, "rgba(40, 70, 35, 0.25)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(island.x, island.y, island.r, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Highlight
+    ctx.fillStyle = "rgba(120, 160, 100, 0.15)";
+    ctx.beginPath();
+    ctx.ellipse(island.x - island.r * 0.2, island.y - island.r * 0.2, island.r * 0.4, island.r * 0.3, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Edges (rail connections) with cartoon style
+  edgeMeta.forEach((meta, key) => {
+    const [aStr, bStr] = key.split("-");
+    const a = parseInt(aStr);
+    const b = parseInt(bStr);
+    const stA = stations.find(s => s.id === a);
+    const stB = stations.find(s => s.id === b);
+    if (!stA || !stB) return;
+
+    ctx.save();
+
+    if (stA.closed || stB.closed) {
+      ctx.strokeStyle = "rgba(150, 80, 80, 0.4)";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 10]);
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+      ctx.moveTo(stA.x, stA.y);
+      ctx.lineTo(stB.x, stB.y);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+    } else {
+      const dx = stB.x - stA.x;
+      const dy = stB.y - stA.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx);
+
+      const offsetX = Math.cos(angle + Math.PI / 2) * 3;
+      const offsetY = Math.sin(angle + Math.PI / 2) * 3;
+
+      // Determine connection quality color
+      let railColor = "rgba(120, 140, 170, 0.8)"; // default gray
+      let railBedColor = "rgba(101, 67, 33, 0.4)";
+      
+      if (dist < SHORT_CONNECTION) {
+        // Short = GREEN (good)
+        railColor = "rgba(100, 200, 130, 0.9)";
+        railBedColor = "rgba(60, 120, 70, 0.5)";
+      } else if (dist < MEDIUM_CONNECTION) {
+        // Medium = YELLOW (ok)
+        railColor = "rgba(220, 200, 100, 0.9)";
+        railBedColor = "rgba(140, 110, 50, 0.5)";
+      } else if (dist < LONG_CONNECTION) {
+        // Long = ORANGE (warning)
+        railColor = "rgba(255, 160, 80, 0.9)";
+        railBedColor = "rgba(150, 80, 40, 0.5)";
+      } else {
+        // Very Long = RED (bad)
+        railColor = "rgba(255, 100, 100, 0.9)";
+        railBedColor = "rgba(150, 50, 50, 0.5)";
+      }
+
+      // Outer rail glow for depth - ENHANCED with pulse
+      const pulseIntensity = 0.25 + 0.1 * Math.sin(elapsed * 2);
+      const glowColor = railColor.replace(/[0-9.]+\)$/, `${pulseIntensity})`);
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 18;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(stA.x, stA.y);
+      ctx.lineTo(stB.x, stB.y);
+      ctx.stroke();
+
+      // Rail shadow
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+      ctx.lineWidth = 11;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(stA.x + 1.5, stA.y + 1.5);
+      ctx.lineTo(stB.x + 1.5, stB.y + 1.5);
+      ctx.stroke();
+
+      // Base rail bed with quality color
+      ctx.strokeStyle = railBedColor;
+      ctx.lineWidth = 10;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(stA.x, stA.y);
+      ctx.lineTo(stB.x, stB.y);
+      ctx.stroke();
+
+      // Double rails with quality color
+      ctx.strokeStyle = railColor;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+      ctx.moveTo(stA.x + offsetX, stA.y + offsetY);
+      ctx.lineTo(stB.x + offsetX, stB.y + offsetY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(stA.x - offsetX, stA.y - offsetY);
+      ctx.lineTo(stB.x - offsetX, stB.y - offsetY);
+      ctx.stroke();
+
+      // Metallic shine on both rails
+      for (let rail of [1, -1]) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(stA.x + offsetX * rail - offsetX * 0.2, stA.y + offsetY * rail - offsetY * 0.2);
+        ctx.lineTo(stB.x + offsetX * rail - offsetX * 0.2, stB.y + offsetY * rail - offsetY * 0.2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Ties (cross beams) with enhanced detail
+      const tieCount = Math.floor(dist / 28);
+      ctx.lineCap = "butt";
+
+      for (let i = 1; i < tieCount; i++) {
+        const t = i / tieCount;
+        const tieX = stA.x + dx * t;
+        const tieY = stA.y + dy * t;
+
+        // Tie shadow
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(tieX - offsetX * 1.6 + 1, tieY - offsetY * 1.6 + 1);
+        ctx.lineTo(tieX + offsetX * 1.6 + 1, tieY + offsetY * 1.6 + 1);
+        ctx.stroke();
+
+        // Tie body with gradient
+        const tieGrad = ctx.createLinearGradient(
+          tieX - offsetX * 1.6, tieY - offsetY * 1.6,
+          tieX + offsetX * 1.6, tieY + offsetY * 1.6
+        );
+        tieGrad.addColorStop(0, "rgba(75, 50, 30, 0.7)");
+        tieGrad.addColorStop(0.5, "rgba(90, 60, 35, 0.8)");
+        tieGrad.addColorStop(1, "rgba(75, 50, 30, 0.7)");
+        ctx.strokeStyle = tieGrad;
+        ctx.lineWidth = 7.5;
+        ctx.beginPath();
+        ctx.moveTo(tieX - offsetX * 1.6, tieY - offsetY * 1.6);
+        ctx.lineTo(tieX + offsetX * 1.6, tieY + offsetY * 1.6);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  });
+
+  // Threat warnings
+  for (const threat of activeThreats) {
+    const alpha = threat.timer / 3.0;
+    const color = threat.type === "meteor" ? "255, 100, 50" : "50, 150, 255";
+    ctx.strokeStyle = `rgba(${color}, ${alpha * 0.7})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(threat.x, threat.y, threat.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = `rgba(${color}, ${alpha * 0.3})`;
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.font = "14px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(threat.type === "meteor" ? "☄️" : "🌊", threat.x, threat.y - threat.radius - 10);
+  }
+
+  // NEW: Factory-Station connections (draw before factories and stations)
+  for (const factory of trainFactories) {
+    if (factory.stationConnections) {
+      for (const stationId of factory.stationConnections) {
+        const station = stations.find(s => s.id === stationId);
+        if (station && !station.closed) {
+          ctx.strokeStyle = "rgba(255, 150, 50, 0.6)";
+          ctx.lineWidth = 4;
+          ctx.setLineDash([8, 8]);
+          ctx.lineCap = "round";
+          
+          ctx.beginPath();
+          ctx.moveTo(factory.x, factory.y);
+          ctx.lineTo(station.x, station.y);
+          ctx.stroke();
+          
+          ctx.setLineDash([]);
+          
+          // Draw a small fuel icon in the middle
+          const midX = (factory.x + station.x) / 2;
+          const midY = (factory.y + station.y) / 2;
+          ctx.font = "16px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("⛽", midX, midY);
+        }
+      }
+    }
+  }
+
+  // Train factories - ENHANCED with glow
+  for (const factory of trainFactories) {
+    const animScale = 1 + factory.animation * 0.5;
+    const progress = factory.productionTimer / (factory.trainsProduced === 0 ? 10 : 25);
+    
+    ctx.save();
+    ctx.translate(factory.x, factory.y);
+    
+    // ENHANCED: Factory glow based on production progress
+    const glowIntensity = 0.15 + progress * 0.15;
+    const glowRadius = FACTORY_RADIUS * 3;
+    const factoryGlow = ctx.createRadialGradient(0, 0, FACTORY_RADIUS * 0.5, 0, 0, glowRadius);
+    factoryGlow.addColorStop(0, `rgba(217, 121, 67, ${glowIntensity})`);
+    factoryGlow.addColorStop(0.5, `rgba(217, 121, 67, ${glowIntensity * 0.3})`);
+    factoryGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = factoryGlow;
+    ctx.beginPath();
+    ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Shadow - ENHANCED
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.beginPath();
+    ctx.ellipse(3, FACTORY_RADIUS + 8, FACTORY_RADIUS * 1.3, FACTORY_RADIUS * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Main building
+    const buildingWidth = FACTORY_RADIUS * 2.2 * animScale;
+    const buildingHeight = FACTORY_RADIUS * 1.8 * animScale;
+    
+    const buildingGrad = ctx.createLinearGradient(0, -buildingHeight/2, 0, buildingHeight/2);
+    buildingGrad.addColorStop(0, "#d97943");
+    buildingGrad.addColorStop(1, "#c95d2b");
+    ctx.fillStyle = buildingGrad;
+    
+    ctx.beginPath();
+    ctx.roundRect(-buildingWidth/2, -buildingHeight/2, buildingWidth, buildingHeight, 6);
+    ctx.fill();
+    
+    // Brick pattern
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.15)";
+    ctx.lineWidth = 1.5;
+    for (let y = -buildingHeight/2 + 8; y < buildingHeight/2; y += 8) {
+      ctx.beginPath();
+      ctx.moveTo(-buildingWidth/2, y);
+      ctx.lineTo(buildingWidth/2, y);
+      ctx.stroke();
+    }
+    
+    // Windows
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const wx = -buildingWidth/4 + col * buildingWidth/2;
+        const wy = -buildingHeight/4 + row * buildingHeight/2;
+        
+        ctx.fillStyle = "#2d3748";
+        ctx.fillRect(wx - 6, wy - 6, 12, 12);
+        
+        const glowAlpha = progress > 0.5 ? 0.8 : 0.3;
+        ctx.fillStyle = `rgba(255, 220, 120, ${glowAlpha})`;
+        ctx.fillRect(wx - 5, wy - 5, 10, 10);
+        
+        ctx.strokeStyle = "#2d3748";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(wx - 5, wy);
+        ctx.lineTo(wx + 5, wy);
+        ctx.moveTo(wx, wy - 5);
+        ctx.lineTo(wx, wy + 5);
+        ctx.stroke();
+      }
+    }
+    
+    // Chimney
+    const chimneyX = buildingWidth/3;
+    const chimneyWidth = 12;
+    const chimneyHeight = 25;
+    
+    const chimneyGrad = ctx.createLinearGradient(chimneyX, -buildingHeight/2 - chimneyHeight, chimneyX, -buildingHeight/2);
+    chimneyGrad.addColorStop(0, "#8b4513");
+    chimneyGrad.addColorStop(1, "#6b3410");
+    ctx.fillStyle = chimneyGrad;
+    ctx.fillRect(chimneyX - chimneyWidth/2, -buildingHeight/2 - chimneyHeight, chimneyWidth, chimneyHeight);
+    
+    ctx.fillStyle = "#5a2a0a";
+    ctx.fillRect(chimneyX - chimneyWidth/2 - 2, -buildingHeight/2 - chimneyHeight, chimneyWidth + 4, 4);
+    
+    // Smoke particles
+    for (const particle of factory.smokeParticles) {
+      const px = particle.x - factory.x;
+      const py = particle.y - factory.y;
+      
+      ctx.fillStyle = `rgba(220, 220, 230, ${particle.alpha * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(px, py, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = `rgba(240, 240, 250, ${particle.alpha * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(px - particle.size * 0.2, py - particle.size * 0.2, particle.size * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Building outline
+    ctx.strokeStyle = "#8b3a1a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(-buildingWidth/2, -buildingHeight/2, buildingWidth, buildingHeight, 6);
+    ctx.stroke();
+    
+    // Door
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(-8, buildingHeight/2 - 16, 16, 16);
+    ctx.strokeStyle = "#8b3a1a";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-8, buildingHeight/2 - 16, 16, 16);
+    
+    // Door handle
+    ctx.fillStyle = "#ffd700";
+    ctx.beginPath();
+    ctx.arc(4, buildingHeight/2 - 8, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Progress bar
+    const barWidth = buildingWidth;
+    const barHeight = 6;
+    const barY = buildingHeight/2 + 12;
+    
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.beginPath();
+    ctx.roundRect(-barWidth/2, barY, barWidth, barHeight, 3);
+    ctx.fill();
+    
+    const fillGrad = ctx.createLinearGradient(-barWidth/2, barY, -barWidth/2 + barWidth * progress, barY);
+    fillGrad.addColorStop(0, "#48bb78");
+    fillGrad.addColorStop(1, "#38a169");
+    ctx.fillStyle = fillGrad;
+    ctx.beginPath();
+    ctx.roundRect(-barWidth/2, barY, barWidth * progress, barHeight, 3);
+    ctx.fill();
+    
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.fillRect(-barWidth/2 + 2, barY + 1, (barWidth * progress) - 4, 2);
+    
+    // Timer text
+    const timeLeft = Math.ceil((factory.trainsProduced === 0 ? 10 : 25) - factory.productionTimer);
+    ctx.fillStyle = "white";
+    ctx.font = "bold 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.lineWidth = 3;
+    ctx.strokeText(`${timeLeft}s`, 0, barY + barHeight + 10);
+    ctx.fillText(`${timeLeft}s`, 0, barY + barHeight + 10);
+    
+    ctx.restore();
+  }
+
+  // Stations
+  for (const st of stations) {
+    const limit = currentQueueLimit(st);
+    const usage = st.queue.length / limit;
+    const baseSize = st.isMegaStation ? 35 : 22;
+    const size = baseSize;
+
+    ctx.save();
+    ctx.translate(st.x, st.y);
+    
+    // ENHANCED: Station glow based on activity
+    if (!st.closed) {
+      const glowIntensity = 0.15 + usage * 0.2;
+      const glowColor = roleColor(st.role);
+      const glowRadius = size * 2.5;
+      
+      // Convert hex color to RGB values
+      let r = 150, g = 150, b = 150;
+      if (glowColor.startsWith('#')) {
+        const hex = glowColor.slice(1);
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      }
+      
+      const glowGrad = ctx.createRadialGradient(0, 0, size * 0.3, 0, 0, glowRadius);
+      glowGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${glowIntensity})`);
+      glowGrad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${glowIntensity * 0.3})`);
+      glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Selection highlight (for reopen mode)
+    if (reopenMode && selectedStationsForReopen.includes(st)) {
+      ctx.strokeStyle = "rgba(72, 187, 120, 0.9)"; // Green highlight
+      ctx.lineWidth = 4;
+      ctx.setLineDash([8, 4]);
+      ctx.beginPath();
+      ctx.arc(0, 0, size + 15, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Selection highlight (for merge mode)
+    if (mergeMode && selectedStationsForMerge.includes(st)) {
+      ctx.strokeStyle = "rgba(102, 126, 234, 0.8)";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([8, 4]);
+      ctx.beginPath();
+      ctx.arc(0, 0, size + 15, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Shadow - ENHANCED with blur
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.beginPath();
+    ctx.ellipse(2, size * 0.7, size * 1.4, size * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (st.closed) {
+      // Draw closed/abandoned building
+      const buildingWidth = size * 1.8;
+      const buildingHeight = size * 1.5;
+      
+      ctx.fillStyle = "rgba(80, 80, 90, 0.8)";
+      ctx.beginPath();
+      ctx.roundRect(-buildingWidth/2, -buildingHeight/2, buildingWidth, buildingHeight, 4);
+      ctx.fill();
+      
+      // X mark
+      ctx.strokeStyle = "rgba(255, 80, 80, 0.9)";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-buildingWidth * 0.3, -buildingHeight * 0.3);
+      ctx.lineTo(buildingWidth * 0.3, buildingHeight * 0.3);
+      ctx.moveTo(buildingWidth * 0.3, -buildingHeight * 0.3);
+      ctx.lineTo(-buildingWidth * 0.3, buildingHeight * 0.3);
+      ctx.stroke();
+      
+      ctx.restore();
+      
+      // Money bar
+      if (!st.closed) {
+        // Money bar (outside transform)
+const barWidth  = 60 // was 70 : 50
+const barHeight = 7
+
+        const moneyPercent = st.money / BASE_STATION_MONEY;
+        
+        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        ctx.fillRect(st.x - barWidth / 2 + 1, st.y - 36 + 1, barWidth, barHeight);
+        
+        ctx.fillStyle = "rgba(30, 30, 40, 0.6)";
+        ctx.beginPath();
+        ctx.roundRect(st.x - barWidth / 2, st.y - 36, barWidth, barHeight, 2.5);
+        ctx.fill();
+        
+        const moneyColor = moneyPercent > 0.5 ? "100, 200, 100" : moneyPercent > 0.2 ? "255, 200, 100" : "255, 100, 100";
+        const moneyGrad = ctx.createLinearGradient(st.x - barWidth/2, st.y - 36, st.x - barWidth/2 + barWidth * moneyPercent, st.y - 36);
+        moneyGrad.addColorStop(0, `rgba(${moneyColor}, 0.9)`);
+        moneyGrad.addColorStop(1, `rgba(${moneyColor}, 0.7)`);
+        ctx.fillStyle = moneyGrad;
+        ctx.beginPath();
+        ctx.roundRect(st.x - barWidth / 2, st.y - 36, barWidth * moneyPercent, barHeight, 2.5);
+        ctx.fill();
+        
+        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.fillRect(st.x - barWidth / 2 + 1, st.y - 35, (barWidth * moneyPercent) - 2, 1.5);
+      }
+      
+      // CLOSED label
+      ctx.fillStyle = "rgba(255, 80, 80, 0.9)";
+      ctx.beginPath();
+      ctx.roundRect(st.x - 25, st.y + size + 4, 50, 14, 7);
+      ctx.fill();
+      
+      ctx.fillStyle = "white";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("CLOSED", st.x, st.y + size + 11);
+      continue;
+    }
+
+    // Draw building based on role
+    const buildingWidth = size * 1.8;
+    const buildingHeight = size * 1.6;
+    
+    let mainColor1, mainColor2, roofColor, windowColor;
+    
+    if (st.isMegaStation) {
+      mainColor1 = "#9370db";
+      mainColor2 = "#7b68ee";
+      roofColor = "#483d8b";
+      windowColor = "#ffd700";
+    } else if (st.role === "Residential") {
+      mainColor1 = "#e8b4a0";
+      mainColor2 = "#d4a190";
+      roofColor = "#8b4513";
+      windowColor = "#ffe4b5";
+    } else if (st.role === "Commercial") {
+      mainColor1 = "#87ceeb";
+      mainColor2 = "#6baed6";
+      roofColor = "#4682b4";
+      windowColor = "#f0f8ff";
+    } else if (st.role === "Industrial") {
+      mainColor1 = "#a9a9a9";
+      mainColor2 = "#808080";
+      roofColor = "#696969";
+      windowColor = "#ffffe0";
+    } else if (st.role === "Hub") {
+      mainColor1 = "#ffa500";
+      mainColor2 = "#ff8c00";
+      roofColor = "#ff6347";
+      windowColor = "#fff8dc";
+    } else { // Transit
+      mainColor1 = "#90ee90";
+      mainColor2 = "#7ccd7c";
+      roofColor = "#32cd32";
+      windowColor = "#f0fff0";
+    }
+    
+    // Main building body
+    const buildingGrad = ctx.createLinearGradient(0, -buildingHeight/2, 0, buildingHeight/2);
+    buildingGrad.addColorStop(0, mainColor1);
+    buildingGrad.addColorStop(1, mainColor2);
+    ctx.fillStyle = buildingGrad;
+    ctx.beginPath();
+    ctx.roundRect(-buildingWidth/2, -buildingHeight/2, buildingWidth, buildingHeight, 4);
+    ctx.fill();
+    
+    // Roof/top
+    ctx.fillStyle = roofColor;
+    ctx.beginPath();
+    ctx.moveTo(-buildingWidth/2 - 2, -buildingHeight/2);
+    ctx.lineTo(0, -buildingHeight/2 - 6);
+    ctx.lineTo(buildingWidth/2 + 2, -buildingHeight/2);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Windows (2x2 grid)
+    const windowSize = buildingWidth * 0.18;
+    const windowSpacing = buildingWidth * 0.25;
+    
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const wx = -windowSpacing + col * windowSpacing * 2;
+        const wy = -buildingHeight * 0.2 + row * buildingHeight * 0.4;
+        
+        // Window frame
+        ctx.fillStyle = "#2d3748";
+        ctx.fillRect(wx - windowSize/2, wy - windowSize/2, windowSize, windowSize);
+        
+        // Window light (brighter if station is busy) with glow
+        const lightIntensity = 0.6 + usage * 0.4;
+        
+        // Window glow
+        ctx.save();
+        ctx.shadowColor = windowColor;
+        ctx.shadowBlur = 4 + usage * 3;
+        ctx.fillStyle = windowColor;
+        ctx.globalAlpha = lightIntensity;
+        ctx.fillRect(wx - windowSize/2 + 1, wy - windowSize/2 + 1, windowSize - 2, windowSize - 2);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    }
+    
+    // Door (at bottom)
+    if (!st.isMegaStation) {
+      ctx.fillStyle = "#2d3748";
+      ctx.fillRect(-buildingWidth * 0.15, buildingHeight/2 - 8, buildingWidth * 0.3, 8);
+    }
+    
+    // Building outline
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(-buildingWidth/2, -buildingHeight/2, buildingWidth, buildingHeight, 4);
+    ctx.stroke();
+    
+    ctx.restore();
+
+    // Money bar (outside transform)
+    const barWidth = st.isMegaStation ? 70 : 50;
+    const barHeight = st.isMegaStation ? 6 : 5;
+    const moneyPercent = st.money / BASE_STATION_MONEY;
+    
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.fillRect(st.x - barWidth / 2 + 1, st.y - 40 + 1, barWidth, barHeight);
+    
+    ctx.fillStyle = "rgba(30, 30, 40, 0.6)";
+    ctx.beginPath();
+    ctx.roundRect(st.x - barWidth / 2, st.y - 40, barWidth, barHeight, 2.5);
+    ctx.fill();
+    
+    const moneyColor = moneyPercent > 0.5 ? "100, 200, 100" : moneyPercent > 0.2 ? "255, 200, 100" : "255, 100, 100";
+    const moneyGrad = ctx.createLinearGradient(st.x - barWidth/2, st.y - 40, st.x - barWidth/2 + barWidth * moneyPercent, st.y - 40);
+    moneyGrad.addColorStop(0, `rgba(${moneyColor}, 0.9)`);
+    moneyGrad.addColorStop(1, `rgba(${moneyColor}, 0.7)`);
+    ctx.fillStyle = moneyGrad;
+    ctx.beginPath();
+    ctx.roundRect(st.x - barWidth / 2, st.y - 40, barWidth * moneyPercent, barHeight, 2.5);
+    ctx.fill();
+    
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.fillRect(st.x - barWidth / 2 + 1, st.y - 39, (barWidth * moneyPercent) - 2, 1.5);
+
+    // Grace period indicator
+    if (st.graceTimer > 0) {
+      const graceAlpha = st.graceTimer / 8;
+      const gracePulse = 0.8 + 0.2 * Math.sin(elapsed * 4);
+      ctx.strokeStyle = `rgba(100, 255, 150, ${graceAlpha * gracePulse})`;
+      ctx.lineWidth = 4;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.arc(st.x, st.y, size + 14, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      ctx.fillStyle = `rgba(100, 255, 150, ${graceAlpha})`;
+      ctx.font = "bold 10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`${Math.ceil(st.graceTimer)}s`, st.x, st.y - size - 22);
+    }
+    
+    // Spawn delay indicator (blue ring)
+    if (st.spawnDelay > 0) {
+      const delayAlpha = Math.min(st.spawnDelay / 10, 1);
+      const delayPulse = 0.7 + 0.3 * Math.sin(elapsed * 3);
+      ctx.strokeStyle = `rgba(100, 180, 255, ${delayAlpha * delayPulse * 0.7})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(st.x, st.y, size + 10, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      ctx.fillStyle = `rgba(100, 180, 255, ${delayAlpha * 0.8})`;
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`⏱${Math.ceil(st.spawnDelay)}s`, st.x, st.y + size + 38);
+    }
+
+    // Passenger count bubble
+    const queueSize = st.queue.length;
+    if (queueSize > 0) {
+      const bubbleRadius = 13 + Math.min(queueSize, 20) * 0.5;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(st.x, st.y, bubbleRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+      ctx.beginPath();
+      ctx.arc(st.x, st.y + 1, bubbleRadius - 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+      ctx.font = "bold 14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(queueSize, st.x + 1, st.y + 2);
+      
+      const textColor = usage > 0.8 ? "#e53e3e" : usage > 0.6 ? "#dd6b20" : "#2d3748";
+      ctx.fillStyle = textColor;
+      ctx.fillText(queueSize, st.x, st.y + 1);
+    }
+    
+    // Role icon
+    const roleEmoji = st.isMegaStation ? "⭐" : {
+      "Residential": "🏘️",
+      "Commercial": "🏬", 
+      "Industrial": "🏭",
+      "Hub": "🎯",
+      "Transit": "🚉",
+      "Mega Hub": "⭐"
+    }[st.role] || "📍";
+    
+    ctx.font = st.isMegaStation ? "18px sans-serif" : "14px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(roleEmoji, st.x, st.y + size + 2);
+    
+    // Show capacity for mega stations
+    if (st.isMegaStation) {
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.lineWidth = 3;
+      ctx.strokeText(`Cap: ${st.capacity} ⛽`, st.x, st.y + size + 22);
+      ctx.fillText(`Cap: ${st.capacity} ⛽`, st.x, st.y + size + 22);
+    }
+    
+    // Show fuel icon for factory-connected stations
+    if (!st.isMegaStation && st.factoryConnections && st.factoryConnections.length > 0) {
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("⛽", st.x + 12, st.y + size + 18);
+    }
+  }
+
+  // Dragging line
+  if (isDragging && dragStartStation) {
+    ctx.strokeStyle = "rgba(255, 200, 100, 0.6)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(dragStartStation.x, dragStartStation.y);
+    ctx.lineTo(dragX, dragY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  
+  // NEW: Dragging line from factory
+  if (isDragging && dragStartFactory) {
+    ctx.strokeStyle = "rgba(255, 150, 50, 0.7)";
+    ctx.lineWidth = 4;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.moveTo(dragStartFactory.x, dragStartFactory.y);
+    ctx.lineTo(dragX, dragY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Show fuel icon near cursor
+    ctx.font = "20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("⛽", dragX, dragY - 20);
+  }
+
+  // Draw selection box during drag-to-select
+  if (isSelectingBox) {
+    const minX = Math.min(selectBoxStart.x, selectBoxEnd.x);
+    const minY = Math.min(selectBoxStart.y, selectBoxEnd.y);
+    const width = Math.abs(selectBoxEnd.x - selectBoxStart.x);
+    const height = Math.abs(selectBoxEnd.y - selectBoxStart.y);
+    
+    // Fill
+    ctx.fillStyle = "rgba(102, 126, 234, 0.15)";
+    ctx.fillRect(minX, minY, width, height);
+    
+    // Border
+    ctx.strokeStyle = "rgba(102, 126, 234, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    ctx.strokeRect(minX, minY, width, height);
+    ctx.setLineDash([]);
+  }
+
+  // Merge mode: Draw lines connecting selected stations
+  if (mergeMode && selectedStationsForMerge.length > 1) {
+    ctx.strokeStyle = "rgba(102, 126, 234, 0.6)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 4]);
+    
+    for (let i = 0; i < selectedStationsForMerge.length - 1; i++) {
+      const st1 = selectedStationsForMerge[i];
+      const st2 = selectedStationsForMerge[i + 1];
+      ctx.beginPath();
+      ctx.moveTo(st1.x, st1.y);
+      ctx.lineTo(st2.x, st2.y);
+      ctx.stroke();
+    }
+    
+    // Close the loop if 3+ stations
+    if (selectedStationsForMerge.length >= 3) {
+      const first = selectedStationsForMerge[0];
+      const last = selectedStationsForMerge[selectedStationsForMerge.length - 1];
+      ctx.beginPath();
+      ctx.moveTo(first.x, first.y);
+      ctx.lineTo(last.x, last.y);
+      ctx.stroke();
+    }
+    
+    ctx.setLineDash([]);
+    
+    // Show merge preview at center
+    let centerX = 0, centerY = 0;
+    for (const st of selectedStationsForMerge) {
+      centerX += st.x;
+      centerY += st.y;
+    }
+    centerX /= selectedStationsForMerge.length;
+    centerY /= selectedStationsForMerge.length;
+    
+    const pulseSize = 40 + Math.sin(elapsed * 3) * 5;
+    ctx.strokeStyle = "rgba(118, 75, 162, 0.7)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, pulseSize, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    ctx.fillStyle = "rgba(118, 75, 162, 0.3)";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, pulseSize - 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.font = "24px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("⭐", centerX, centerY);
+  }
+  
+  // Draw selection box during drag-to-select (REOPEN mode)
+  if (isSelectingBoxReopen && selectBoxStartReopen && selectBoxEndReopen) {
+    const minX = Math.min(selectBoxStartReopen.x, selectBoxEndReopen.x);
+    const minY = Math.min(selectBoxStartReopen.y, selectBoxEndReopen.y);
+    const boxWidth = Math.abs(selectBoxEndReopen.x - selectBoxStartReopen.x);
+    const boxHeight = Math.abs(selectBoxEndReopen.y - selectBoxStartReopen.y);
+
+    ctx.fillStyle = "rgba(72, 187, 120, 0.15)";
+    ctx.fillRect(minX, minY, boxWidth, boxHeight);
+
+    ctx.strokeStyle = "rgba(72, 187, 120, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    ctx.strokeRect(minX, minY, boxWidth, boxHeight);
+    ctx.setLineDash([]);
+  }
+
+  // Trains - ENHANCED with glow
+  for (const train of trains) {
+    const passengerCount = train.passengers.length;
+    const size = 8 + passengerCount * 1.5;
+    
+    // ENHANCED: Outer glow
+    const glowColor = passengerCount > 0 ? 'rgba(255, 200, 100, 0.3)' : 'rgba(150, 150, 180, 0.2)';
+    const glowGrad = ctx.createRadialGradient(train.x, train.y, size * 0.5, train.x, train.y, size * 2.5);
+    glowGrad.addColorStop(0, glowColor);
+    glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(train.x, train.y, size * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Train shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.beginPath();
+    ctx.ellipse(train.x + 2, train.y + size * 0.5, size * 1.2, size * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    const trainGrad = ctx.createRadialGradient(
+      train.x - size * 0.3, train.y - size * 0.3, 0,
+      train.x, train.y, size
+    );
+    
+    if (passengerCount > 0) {
+      trainGrad.addColorStop(0, "#ffe080");
+      trainGrad.addColorStop(0.7, "#f6ad55");
+      trainGrad.addColorStop(1, "#e89530");
+      ctx.fillStyle = trainGrad;
+    } else {
+      trainGrad.addColorStop(0, "#c8c8d8");
+      trainGrad.addColorStop(0.7, "#a0a0b0");
+      trainGrad.addColorStop(1, "#808090");
+      ctx.fillStyle = trainGrad;
+    }
+    
+    ctx.beginPath();
+    ctx.arc(train.x, train.y, size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Train windows with glow
+    ctx.save();
+    ctx.shadowColor = 'rgba(200, 230, 255, 0.5)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = "rgba(120, 180, 230, 0.7)";
+    ctx.beginPath();
+    ctx.arc(train.x - size * 0.3, train.y - size * 0.2, size * 0.25, 0, Math.PI * 2);
+    ctx.arc(train.x + size * 0.3, train.y - size * 0.2, size * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    // Window highlights
+    ctx.fillStyle = "rgba(220, 240, 255, 0.8)";
+    ctx.beginPath();
+    ctx.arc(train.x - size * 0.35, train.y - size * 0.25, size * 0.12, 0, Math.PI * 2);
+    ctx.arc(train.x + size * 0.25, train.y - size * 0.25, size * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(train.x, train.y, size, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.strokeStyle = passengerCount > 0 ? "rgba(200, 130, 40, 0.8)" : "rgba(60, 60, 70, 0.8)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(train.x, train.y, size - 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Passenger count badge
+    if (passengerCount > 0) {
+      const badgeSize = 9 + passengerCount * 0.5;
+      const badgeX = train.x + size * 0.6;
+      const badgeY = train.y - size * 0.6;
+      
+      ctx.fillStyle = "rgba(46, 125, 50, 0.95)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(badgeX, badgeY, badgeSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.fillStyle = "white";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(passengerCount, badgeX, badgeY);
+    }
+    
+    // Fuel indicator bar
+    const fuelPercent = train.fuel / MAX_TRAIN_FUEL;
+    const barWidth = size * 2;
+    const barHeight = 4;
+    const barX = train.x - barWidth / 2;
+    const barY = train.y + size + 6;
+    
+    // STUCK TRAIN INDICATOR: Show red warning if train idle for > 5 seconds
+    if (train.idleTime && train.idleTime > 5) {
+      // Pulsing red warning circle
+      const pulseAlpha = 0.5 + Math.sin(Date.now() / 200) * 0.3;
+      ctx.strokeStyle = `rgba(255, 50, 50, ${pulseAlpha})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(train.x, train.y, size + 8, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Warning symbol above train
+      ctx.fillStyle = "rgba(255, 50, 50, 0.9)";
+      ctx.font = "bold 16px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("⚠", train.x, train.y - size - 15);
+    }
+    
+    // Background
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    
+    // Fuel color based on level
+    let fuelColor;
+    if (fuelPercent > 0.6) {
+      fuelColor = "rgba(100, 220, 120, 0.9)"; // Green
+    } else if (fuelPercent > 0.3) {
+      fuelColor = "rgba(255, 200, 80, 0.9)"; // Yellow
+    } else {
+      fuelColor = "rgba(255, 80, 80, 0.9)"; // Red
+    }
+    
+    ctx.fillStyle = fuelColor;
+    ctx.fillRect(barX, barY, barWidth * fuelPercent, barHeight);
+    
+    // Shine effect
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.fillRect(barX, barY, barWidth * fuelPercent, barHeight * 0.4);
+    
+    // Motion lines
+    if (train.targetStation !== null && train.speed > 100) {
+      ctx.strokeStyle = `rgba(255, 255, 255, 0.3)`;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      
+      const angle = Math.atan2(train.y - (train.y - 1), train.x - (train.x - 1));
+      for (let i = 0; i < 3; i++) {
+        const offset = (i + 1) * 4;
+        ctx.beginPath();
+        ctx.moveTo(train.x - Math.cos(angle) * (size + offset), train.y - Math.sin(angle) * (size + offset));
+        ctx.lineTo(train.x - Math.cos(angle) * (size + offset + 3), train.y - Math.sin(angle) * (size + offset + 3));
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ---- End of world drawing (camera space) ----
+  ctx.restore();
+
+  // New station pulse (screen-space) - ENHANCED with glow
+  if (newStationPulse) {
+    // Outer glow
+    const glowGrad = ctx.createRadialGradient(
+      newStationPulse.x, newStationPulse.y, newStationPulse.radius * 0.5,
+      newStationPulse.x, newStationPulse.y, newStationPulse.radius * 1.2
+    );
+    glowGrad.addColorStop(0, `rgba(100, 255, 150, ${newStationPulse.alpha * 0.3})`);
+    glowGrad.addColorStop(1, 'rgba(100, 255, 150, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(newStationPulse.x, newStationPulse.y, newStationPulse.radius * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Main ring
+    ctx.strokeStyle = `rgba(100, 255, 150, ${newStationPulse.alpha})`;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = 'rgba(100, 255, 150, 0.8)';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(newStationPulse.x, newStationPulse.y, newStationPulse.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  
+  // Render particles (ENHANCED)
+  renderParticles();
+
+  // Screen flash (screen-space) - ENHANCED with gradient
+  if (screenFlash > 0) {
+    // Radial flash from center
+    const flashGrad = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height) * 0.7);
+    flashGrad.addColorStop(0, `rgba(255, 255, 255, ${screenFlash * 0.4})`);
+    flashGrad.addColorStop(0.5, `rgba(200, 255, 220, ${screenFlash * 0.2})`);
+    flashGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = flashGrad;
+    ctx.fillRect(0, 0, width, height);
+  }
+}
+
+    // ----- HUD update -----
+    function updateHUD() {
+      timeText.textContent = elapsed.toFixed(1);
+      scoreText.textContent = score;
+      servedText.textContent = servedPassengers;
+      bestScoreText.textContent = bestScore;
+      moneyText.textContent = "$" + playerMoney; // NEW
+      totalWaiting = 0;
+      for (const st of stations) totalWaiting += st.queue.length;
+      waitText.textContent = totalWaiting;
+      stationsText.textContent = stations.filter(st => !st.closed).length + "/" + stations.length;
+      segmentsText.textContent = edgeMeta.size;
+      trainsText.textContent = trains.length;
+      factoriesText.textContent = trainFactories.length; // NEW
+      const diff = difficultyFactor();
+      difficultyText.textContent = diff.toFixed(1) + "x";
+      
+      const effEl = document.getElementById("efficiencyText");
+      if (effEl) {
+        effEl.textContent = Math.round(currentEfficiency) + "%";
+        effEl.style.color = currentEfficiency > 70 ? "#48bb78" : currentEfficiency > 50 ? "#f6ad55" : "#fc8181";
+      }
+      
+      const comboEl = document.getElementById("comboText");
+      if (comboEl) {
+        comboEl.textContent = "×" + comboMultiplier.toFixed(1);
+        comboEl.style.color = comboMultiplier > 2 ? "#48bb78" : "#ffd166";
+      }
+      
+      const rushPill = document.getElementById("rushHourPill");
+      const rushText = document.getElementById("rushHourText");
+      if (rushPill && rushText) {
+        if (isRushHour) {
+          rushPill.style.display = "block";
+          rushText.textContent = Math.ceil(rushHourTimer) + "s";
+        } else {
+          rushPill.style.display = "none";
+        }
+      }
+      
+      // Update closed stations warning
+      if (closedWarningPill && closedWarningText && stations.length > 0) {
+        const closedCount = stations.filter(s => s.closed).length;
+        const closedPercent = Math.round((closedCount / stations.length) * 100);
+        
+        if (closedPercent >= 40) { // Show warning at 40% (approaching 60% limit)
+          closedWarningPill.style.display = "block";
+          closedWarningText.textContent = closedPercent + "%";
+          
+          // Change color based on severity
+          if (closedPercent >= 55) {
+            closedWarningPill.style.background = "rgba(255, 50, 50, 0.4)"; // Red - critical
+          } else if (closedPercent >= 50) {
+            closedWarningPill.style.background = "rgba(255, 100, 50, 0.4)"; // Orange-red - danger
+          } else {
+            closedWarningPill.style.background = "rgba(255, 150, 50, 0.3)"; // Orange - warning
+          }
+        } else {
+          closedWarningPill.style.display = "none";
+        }
+      }
+      
+      // Update reopen button visibility
+      updateReopenButton();
+    }
+
+    // ----- Game over check -----
+    function checkOvercrowding() {
+      for (const st of stations) {
+        if (st.closed) continue;
+        const limit = currentQueueLimit(st);
+        if (st.queue.length > limit) {
+          running = false;
+          showGameOver(st);
+          break;
+        }
+      }
+    }
+
+    // ----- Game loop -----
+    let lastTime = performance.now();
+
+    function gameLoop(timestamp) {
+      const dt = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+
+      viewScale += (targetViewScale - viewScale) * 0.08;
+
+      // Update particles (enhanced graphics)
+      updateParticles(dt);
+
+      // Update visual effects
+      if (screenFlash > 0) {
+        screenFlash -= dt * 2;
+        if (screenFlash < 0) screenFlash = 0;
+      }
+
+      if (newStationPulse) {
+        newStationPulse.radius += dt * 300;
+        newStationPulse.alpha -= dt * 1.5;
+        if (newStationPulse.alpha <= 0) {
+          newStationPulse = null;
+        }
+      }
+
+      if (cameraFocusTimer > 0) {
+        cameraFocusTimer -= dt;
+        if (cameraFocusTimer < 0) cameraFocusTimer = 0;
+      }
+
+      // Day/night progression
+      timeOfDay = (timeOfDay + dt / DAY_NIGHT_DURATION) % 1;
+
+      if (running) {
+        elapsed += dt;
+        
+        updateRushHour(dt);
+        updateComboSystem(dt);
+        updateThreats(dt);
+        updateStationEconomy(dt);
+        updateTrainFactories(dt); // NEW
+        currentEfficiency = calculateNetworkEfficiency();
+        
+        for (const st of stations) {
+          if (st.graceTimer > 0) {
+            st.graceTimer -= dt;
+            if (st.graceTimer <= 0) st.graceTimer = 0;
+          }
+          if (st.spawnAnimation > 0) {
+            st.spawnAnimation -= dt;
+            if (st.spawnAnimation < 0) st.spawnAnimation = 0;
+          }
+          // NEW: Countdown spawn delay
+          if (st.spawnDelay > 0) {
+            st.spawnDelay -= dt;
+            if (st.spawnDelay < 0) st.spawnDelay = 0;
+          }
+        }
+
+        spawnPassengers(dt);
+        spawnStationsOverTime(dt);
+        // spawnTrainsOverTime removed - trains only from factories
+        updateTrains(dt);
+        updateHUD();
+        checkOvercrowding();
+        checkEconomicCollapse();
+      } else {
+        applyBackgroundByDifficulty(difficultyFactor());
+      }
+
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+    requestAnimationFrame(gameLoop);
+
+    // ----- Overlay -----
+    function showGameOver(overcrowdedStation, reason) {
+      let metricsHTML = "";
+      if (score > bestScore) bestScore = score;
+
+      const segmentCount = edgeMeta.size;
+      const rank = addToLeaderboard(elapsed, servedPassengers, stations.length, segmentCount);
+
+      overlayTitle.textContent = "Game Over";
+      
+      metricsHTML += `<div class="metric"><span class="metric-label">Final Efficiency</span><span class="metric-value">${Math.round(currentEfficiency)}%</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Peak Combo</span><span class="metric-value">×${peakCombo.toFixed(1)}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Rush Hours Survived</span><span class="metric-value">${Math.floor(elapsed / RUSH_HOUR_INTERVAL)}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Money Earned</span><span class="metric-value">$${playerMoney}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Factories Built</span><span class="metric-value">${trainFactories.length}</span></div>`;
+
+      if (reason === "economic_collapse_60") {
+        const closedCount = stations.filter(s => s.closed).length;
+        const closedPercent = Math.round((closedCount / stations.length) * 100);
+        overlayMessage.textContent = `Network failure: ${closedPercent}% of stations closed (${closedCount}/${stations.length}). Game over at 60%!`;
+      } else if (reason === "economic_collapse") {
+        overlayMessage.textContent = "Your network collapsed: All stations ran out of money!";
+      } else {
+        const stName = overcrowdedStation
+          ? `${overcrowdedStation.role} station #${overcrowdedStation.id}`
+          : "a station";
+        overlayMessage.textContent = `Your network collapsed: ${stName} overflowed.`;
+      }
+
+      const mins = Math.floor(elapsed / 60);
+      const secs = Math.floor(elapsed % 60);
+      const timeStr = `${mins}:${secs.toString().padStart(2, "0")}`;
+
+      metricsHTML += `<div class="metric"><span class="metric-label">Time survived</span><span class="metric-value">${timeStr}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Score (served)</span><span class="metric-value">${score}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Leaderboard rank</span><span class="metric-value">${rank <= 10 ? '#' + rank : 'Not ranked'}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Stations</span><span class="metric-value">${stations.length}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Segments</span><span class="metric-value">${segmentCount}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Trains</span><span class="metric-value">${trains.length}</span></div>`;
+      metricsHTML += `<div class="metric"><span class="metric-label">Difficulty reached</span><span class="metric-value">${difficultyFactor().toFixed(1)}x</span></div>`;
+
+      // Show leaderboard
+      if (leaderboard.length > 0) {
+        metricsHTML += '<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">';
+        metricsHTML += '<div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; opacity: 0.9;">🏆 Top 10 Runs</div>';
+        leaderboard.slice(0, 5).forEach((entry, i) => {
+          const mins = Math.floor(entry.time / 60);
+          const secs = Math.floor(entry.time % 60);
+          const time = `${mins}:${secs.toString().padStart(2, '0')}`;
+          const highlight = i === rank - 1 ? 'style="background: rgba(79, 209, 197, 0.15);"' : '';
+          metricsHTML += `<div ${highlight} style="display: flex; justify-content: space-between; padding: 4px 8px; font-size: 12px; border-radius: 4px;">`;
+          metricsHTML += `<span style="opacity: 0.7;">#${i + 1}</span>`;
+          metricsHTML += `<span style="font-weight: 600;">${entry.score} served</span>`;
+          metricsHTML += `<span style="opacity: 0.6;">${time}</span>`;
+          metricsHTML += `</div>`;
+        });
+        metricsHTML += '</div>';
+      }
+
+      overlayMetrics.innerHTML = metricsHTML;
+      overlayButton.textContent = "Start New Run";
+      overlay.classList.remove("hidden");
+    }
+
+    overlayButton.addEventListener("click", () => {
+      overlay.classList.add("hidden");
+      resetRun();
+      running = true;
+      lastTime = performance.now();
+    });
+
+    // ----- Initial screen -----
+    spawnInitialCity();
+    updateHUD();
+    overlayTitle.textContent = "Metro Manager – Endless Run";
+    overlayMessage.textContent =
+      "Build an endless metro network. New stations and trains appear over time. If any station fills up, you lose and start fresh!\n\nShort connections = faster trains. Long connections = slower trains. Compete for the high score!";
+    overlayMetrics.innerHTML = `
+      <p style="margin: 12px 0; font-size: 13px; opacity: 0.8;">
+        <strong>🎮 How to Play:</strong><br>
+        • Connect stations by dragging between them<br>
+        • New stations appear with 8s grace period (green ring)<br>
+        • Keep all stations below capacity or game over!<br>
+        • Stations need money - earn it by serving passengers<br><br>
+        <strong>🏭 Train Production:</strong><br>
+        • Start with 2 factories<br>
+        • Each factory: first train in 10s, then 25s per train<br>
+        • Right-click empty areas to build more factories ($500)<br>
+        • More factories = more trains = handle more passengers!<br><br>
+        <strong>💚 Reopening Stations:</strong><br>
+        • Click "💚 Reopen Station" then drag to select closed stations (💀)<br>
+        • Cost: $200 per station<br>
+        • ⚠️ If 60% of stations close, you lose!<br><br>
+        <strong>⚠️ Game Over = Complete Reset</strong><br>
+        Try to beat your high score! 🏆
+      </p>
+    `;
+    overlayButton.textContent = "Start Run";
+    overlay.classList.remove("hidden");
+  </script>
+</body>
+</html>
