@@ -163,6 +163,15 @@
       box-shadow: 0 12px 30px rgba(79, 209, 197, 0.4);
     }
     
+    .versus-btn {
+      border-color: #ffd700;
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
+    }
+    
+    .versus-btn:hover {
+      box-shadow: 0 12px 30px rgba(255, 215, 0, 0.4);
+    }
+    
     .mode-icon {
       font-size: 32px;
       margin-bottom: 8px;
@@ -176,6 +185,7 @@
     
     .story-title { color: #667eea; }
     .survival-title { color: #4fd1c5; }
+    .versus-title { color: #ffd700; }
     
     .mode-desc {
       font-size: 13px;
@@ -200,7 +210,7 @@
     
     @media (max-width: 768px) {
       .mode-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
       }
       
       .title h1 {
@@ -209,6 +219,12 @@
       
       .menu-box {
         padding: 20px;
+      }
+    }
+    
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .mode-grid {
+        grid-template-columns: 1fr 1fr !important;
       }
     }
   </style>
@@ -302,13 +318,13 @@
       <div class="mode-selection">
         <h2 class="section-title">🎯 Select Game Mode</h2>
         
-        <div class="mode-grid">
+        <div class="mode-grid" style="grid-template-columns: 1fr 1fr 1fr;">
           <!-- Story Mode -->
           <a href="levels.html" class="mode-btn story-btn">
             <div class="mode-icon">📖</div>
             <div class="mode-title story-title">STORY MODE</div>
             <div class="mode-desc">
-              • 100 challenging levels<br>
+              • 20 challenging levels<br>
               • Progressive difficulty<br>
               • Specific objectives<br>
               • <strong style="color: #fc8181;">Fail = Restart Level 1!</strong>
@@ -330,6 +346,21 @@
             </div>
             <div class="mode-progress">
               Best Score: <span id="survivalBest">0</span>
+            </div>
+          </a>
+
+          <!-- Versus Mode -->
+          <a href="versus.html" class="mode-btn versus-btn">
+            <div class="mode-icon">⚔️</div>
+            <div class="mode-title versus-title">VERSUS MODE</div>
+            <div class="mode-desc">
+              • Online 1v1 battles<br>
+              • Custom rules<br>
+              • Real-time competition<br>
+              • <strong style="color: #ffd700;">Prove you're the best!</strong>
+            </div>
+            <div class="mode-progress">
+              🔥 Challenge a friend!
             </div>
           </a>
         </div>
