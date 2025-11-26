@@ -4110,9 +4110,29 @@ const barHeight = 7
 
     // ----- Initial screen -----
     // ----- Initial screen - VERSUS MODE -----
-    // Hide survival overlay and show lobby
+    
+    // Hide ALL overlays from previous games
     overlay.classList.add("hidden");
+    document.getElementById('winnerScreen').classList.add('hidden');
+    document.getElementById('matchTimerDisplay').style.display = 'none';
+    document.getElementById('opponentPanel').style.display = 'none';
+    
+    // Show the lobby
     document.getElementById('lobbyScreen').classList.remove('hidden');
+    
+    // Reset state
+    versusMode = false;
+    running = false;
+    
+    // Clear leftover intervals
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
     
     console.log('🎮 Versus mode ready!');
   </script>
