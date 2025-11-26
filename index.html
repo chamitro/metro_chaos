@@ -423,18 +423,68 @@
         grid-template-columns: 1fr 1fr !important;
       }
     }
+    
+    /* KO-FI BUTTON */
+    #kofiButton {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 999;
+      animation: slideInUp 1s ease-out 0.6s both;
+    }
+    
+    #kofiButton a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #FF5E5B, #ff7673);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 15px;
+      box-shadow: 0 6px 20px rgba(255, 94, 91, 0.5);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+    }
+    
+    #kofiButton a:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 30px rgba(255, 94, 91, 0.7), 0 0 20px rgba(255, 94, 91, 0.4);
+      background: linear-gradient(135deg, #ff7673, #ff9190);
+    }
+    
+    #kofiButton a:active {
+      transform: translateY(-2px) scale(1.02);
+    }
+    
+    .kofi-icon {
+      font-size: 20px;
+      animation: float 3s ease-in-out infinite;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
   </style>
 </head>
 <body>
   <!-- Animated Background -->
   <canvas id="bgCanvas"></canvas>
   
+  <!-- KO-FI BUTTON -->
+  <div id="kofiButton">
+    <a href="https://ko-fi.com/harrym" target="_blank" rel="noopener">
+      <span class="kofi-icon">☕</span>
+      <span>Support on Ko-fi</span>
+    </a>
+  </div>
+  
   <div class="container">
     <div class="menu-box">
       
       <!-- Title -->
       <div class="title">
-        <h1> METRO CHAOS </h1>
+        <h1>🚇 METRO CHAOS 🚇</h1>
         <p class="subtitle">Build. Connect. Survive.</p>
       </div>
 
@@ -444,7 +494,7 @@
         
         <!-- Core Mechanics -->
         <div class="rule-card core">
-          <h3>Game Mechanics</h3>
+          <h3>🎮 Core Mechanics</h3>
           <ul>
             <li><strong>Connect Stations:</strong> Click and drag between stations to create rail connections</li>
             <li><strong>Passengers:</strong> Appear at stations and need to reach their destination</li>
@@ -456,7 +506,7 @@
 
         <!-- Money System -->
         <div class="rule-card money">
-          <h3> Money System</h3>
+          <h3>💰 Money System</h3>
           <ul>
             <li><strong>Starting Money:</strong> Each station starts with <strong>$1000</strong></li>
             <li><strong>Money Drain:</strong> Active stations lose <strong>$2 per second</strong></li>
@@ -468,7 +518,7 @@
 
         <!-- Factory System -->
         <div class="rule-card factory">
-          <h3> Factory System</h3>
+          <h3>🏭 Factory System</h3>
           <ul>
             <li><strong>Build Factories:</strong> Right-click empty areas, costs <strong>$200</strong> (increases by $100 each)</li>
             <li><strong>Train Production:</strong> First train in <strong>10 seconds</strong>, then <strong>25 seconds</strong> each</li>
@@ -480,7 +530,7 @@
 
         <!-- Connection Quality -->
         <div class="rule-card connection">
-          <h3> Connection Quality</h3>
+          <h3>🛤️ Connection Quality</h3>
           <ul>
             <li><strong>🟢 Green (Fast):</strong> Distance &lt; 150 pixels - trains move at full speed</li>
             <li><strong>🟡 Yellow (Medium):</strong> Distance 150-300 - trains slightly slower</li>
@@ -491,7 +541,7 @@
 
         <!-- Advanced Features -->
         <div class="rule-card advanced">
-          <h3> Advanced Features</h3>
+          <h3>⭐ Advanced Features</h3>
           <ul>
             <li><strong>Merge Stations:</strong> Combine 3+ stations into mega hub, costs <strong>$500</strong></li>
             <li><strong>Mega Stations:</strong> Higher capacity, can be refueled by factories</li>
@@ -504,7 +554,7 @@
 
         <!-- Fail Conditions -->
         <div class="rule-card fail">
-          <h3> Fail Conditions</h3>
+          <h3>💀 Fail Conditions</h3>
           <ul>
             <li><strong>Station Overcrowded:</strong> Any station exceeds its capacity limit</li>
             <li><strong>Economic Collapse:</strong> 60% or more of stations close (run out of money)</li>
@@ -515,12 +565,12 @@
 
       <!-- Mode Selection -->
       <div class="mode-selection">
-        <h2 class="section-title"> Select Game Mode</h2>
+        <h2 class="section-title">🎯 Select Game Mode</h2>
         
         <div class="mode-grid" style="grid-template-columns: 1fr 1fr 1fr;">
           <!-- Story Mode -->
           <a href="levels.html" class="mode-btn story-btn">
-            <div class="mode-icon"></div>
+            <div class="mode-icon">📖</div>
             <div class="mode-title story-title">STORY MODE</div>
             <div class="mode-desc">
               • 20 challenging levels<br>
@@ -535,7 +585,7 @@
 
           <!-- Survival Mode -->
           <a href="survival.html" class="mode-btn survival-btn">
-            <div class="mode-icon"></div>
+            <div class="mode-icon">♾️</div>
             <div class="mode-title survival-title">SURVIVAL MODE</div>
             <div class="mode-desc">
               • Endless gameplay<br>
@@ -550,7 +600,7 @@
 
           <!-- Versus Mode -->
           <a href="versus.html" class="mode-btn versus-btn">
-            <div class="mode-icon"></div>
+            <div class="mode-icon">⚔️</div>
             <div class="mode-title versus-title">VERSUS MODE</div>
             <div class="mode-desc">
               • Online 1v1 battles<br>
