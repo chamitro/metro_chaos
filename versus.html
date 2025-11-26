@@ -346,12 +346,60 @@
 </div>
 
 <!-- Opponent Stats Panel (shown during game) -->
-<div id="opponentPanel">
-  <h3>⚔️ Opponent</h3>
-  <div class="stat">👥 <span id="oppPassengers">0</span> passengers</div>
-  <div class="stat">💰 $<span id="oppMoney">0</span></div>
-  <div class="stat">🏢 <span id="oppStations">0</span> stations</div>
-  <div class="stat">🚇 <span id="oppTrains">0</span> trains</div>
+<div id="opponentPanel" style="position: fixed; bottom: 15px; right: 15px; padding: 10px; background: rgba(10, 14, 35, 0.95); border-radius: 12px; border: 2px solid rgba(255, 107, 107, 0.5); min-width: 200px; z-index: 15; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.4);">
+  <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 8px; background: linear-gradient(135deg, #ff6b6b, #ee5a6f); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">⚔️ Opponent</h3>
+  
+  <!-- Core Stats -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+    <div style="background: rgba(255,255,255,0.05); padding: 6px; border-radius: 6px;">
+      <div style="font-size: 9px; opacity: 0.7; margin-bottom: 2px;">👥 Passengers</div>
+      <div style="font-size: 14px; font-weight: 700; color: #4fd1c5;" id="oppPassengers">0</div>
+    </div>
+    <div style="background: rgba(255,255,255,0.05); padding: 6px; border-radius: 6px;">
+      <div style="font-size: 9px; opacity: 0.7; margin-bottom: 2px;">💰 Money</div>
+      <div style="font-size: 14px; font-weight: 700; color: #ffd700;" id="oppMoney">$0</div>
+    </div>
+  </div>
+  
+  <!-- Network Stats -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+    <div style="background: rgba(255,255,255,0.05); padding: 6px; border-radius: 6px;">
+      <div style="font-size: 9px; opacity: 0.7; margin-bottom: 2px;">🏢 Stations</div>
+      <div style="font-size: 13px; font-weight: 600;" id="oppStations">0</div>
+    </div>
+    <div style="background: rgba(255,255,255,0.05); padding: 6px; border-radius: 6px;">
+      <div style="font-size: 9px; opacity: 0.7; margin-bottom: 2px;">🚇 Trains</div>
+      <div style="font-size: 13px; font-weight: 600;" id="oppTrains">0</div>
+    </div>
+  </div>
+  
+  <!-- Enhanced Stats -->
+  <div style="background: rgba(102, 126, 234, 0.1); padding: 6px; border-radius: 6px; border: 1px solid rgba(102, 126, 234, 0.3); margin-bottom: 6px;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+      <span style="font-size: 10px; opacity: 0.8;">🔗 Connections:</span>
+      <span style="font-size: 11px; font-weight: 600;" id="oppConnections">0</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+      <span style="font-size: 10px; opacity: 0.8;">📊 Efficiency:</span>
+      <span style="font-size: 11px; font-weight: 600;" id="oppEfficiency">0%</span>
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+      <span style="font-size: 10px; opacity: 0.8;">🏭 Factories:</span>
+      <span style="font-size: 11px; font-weight: 600;" id="oppFactories">0</span>
+    </div>
+  </div>
+  
+  <!-- Last Action -->
+  <div style="background: rgba(255, 107, 107, 0.1); padding: 6px; border-radius: 6px; border: 1px solid rgba(255, 107, 107, 0.3); margin-bottom: 6px;">
+    <div style="font-size: 9px; opacity: 0.7; margin-bottom: 2px;">⚡ Last Action:</div>
+    <div style="font-size: 10px; font-weight: 500; color: #ff6b6b;" id="oppLastAction">Waiting...</div>
+  </div>
+  
+  <!-- Tiny Network Graph -->
+  <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+    <div style="font-size: 9px; opacity: 0.7; margin-bottom: 3px;">📈 Activity:</div>
+    <canvas id="oppNetworkGraph" width="180" height="30" style="width: 100%; height: 30px;"></canvas>
+  </div>
 </div>
 
 <!-- Winner Screen -->
@@ -556,6 +604,15 @@ let opponentScore = {
   trains: 0
 };
 
+// Track last action for opponent panel
+let lastAction = '';
+let lastActionTime = 0;
+
+function recordAction(action) {
+  lastAction = action;
+  lastActionTime = Date.now();
+}
+
 // Connect when page loads
 
 // ==================== LOBBY BUTTON HANDLERS ====================
@@ -696,10 +753,25 @@ mpClient.on('MATCH_START', function(data) {
 // Handle Opponent Updates
 mpClient.on('OPPONENT_UPDATE', function(data) {
   opponentScore = data;
-  document.getElementById('oppPassengers').textContent = data.passengers;
-  document.getElementById('oppMoney').textContent = data.money;
-  document.getElementById('oppStations').textContent = data.stations;
-  document.getElementById('oppTrains').textContent = data.trains;
+  
+  // Update basic stats
+  document.getElementById('oppPassengers').textContent = data.passengers || 0;
+  document.getElementById('oppMoney').textContent = '$' + (data.money || 0);
+  document.getElementById('oppStations').textContent = data.stations || 0;
+  document.getElementById('oppTrains').textContent = data.trains || 0;
+  
+  // Update enhanced stats
+  document.getElementById('oppConnections').textContent = data.connections || 0;
+  document.getElementById('oppEfficiency').textContent = (data.efficiency || 0) + '%';
+  document.getElementById('oppFactories').textContent = data.factories || 0;
+  
+  // Update last action
+  if (data.lastAction) {
+    document.getElementById('oppLastAction').textContent = data.lastAction;
+  }
+  
+  // Update network graph
+  updateOpponentGraph(data);
 });
 
 // Handle Opponent Left
@@ -1593,6 +1665,11 @@ mergeButton.textContent = "🔀 Merge Stations ($" + MERGE_COST + ")";
   mergeButton.style.background = "linear-gradient(135deg,#667eea,#764ba2)";
 
   updateCameraZoom();
+  
+  // Record action for opponent
+  if (versusMode) {
+    recordAction('Merged stations');
+  }
 }
 
 
@@ -2254,6 +2331,11 @@ function spawnStationsOverTime(dt) {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       edgeMeta.set(key, { distance: dist, createdAt: elapsed });
+      
+      // Record action for opponent
+      if (versusMode) {
+        recordAction('Connected stations');
+      }
     }
     
     // ----- Factory capacity helpers -----
@@ -2576,6 +2658,11 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
   // 🔼 Increase cost for next factory
   TRAIN_FACTORY_COST += 100;
   updateFactoryButton();
+  
+  // Record action for opponent
+  if (versusMode) {
+    recordAction('Built factory');
+  }
 
   screenFlash = 0.3;
 }
@@ -2841,11 +2928,21 @@ stations.forEach((st, i) => {
 function syncGameState() {
   if (!versusMode) return;
   
+  // Count connections
+  const connectionCount = edgeMeta.size;
+  
+  // Calculate efficiency
+  const efficiency = Math.round(currentEfficiency);
+  
   mpClient.sendGameUpdate({
     passengers: servedPassengers,
     money: playerMoney,
     stations: stations.length,
     trains: trains.length,
+    connections: connectionCount,
+    efficiency: efficiency,
+    factories: trainFactories.length,
+    lastAction: lastAction,
     timestamp: Date.now()
   });
 }
@@ -2901,6 +2998,79 @@ function endMatch(forceWin) {
   
   document.getElementById('winnerScreen').style.display = 'flex';
   }
+
+// ==================== OPPONENT NETWORK GRAPH ====================
+let opponentGraphData = [];
+
+function updateOpponentGraph(data) {
+  // Add new data point
+  opponentGraphData.push({
+    connections: data.connections || 0,
+    efficiency: data.efficiency || 0,
+    time: Date.now()
+  });
+  
+  // Keep only last 20 data points
+  if (opponentGraphData.length > 20) {
+    opponentGraphData.shift();
+  }
+  
+  // Draw the graph
+  drawOpponentGraph();
+}
+
+function drawOpponentGraph() {
+  const canvas = document.getElementById('oppNetworkGraph');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  
+  // Clear
+  ctx.clearRect(0, 0, width, height);
+  
+  if (opponentGraphData.length < 2) return;
+  
+  // Draw connections line (cyan)
+  ctx.strokeStyle = 'rgba(79, 209, 197, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  
+  const maxConnections = Math.max(...opponentGraphData.map(d => d.connections), 10);
+  
+  opponentGraphData.forEach((point, i) => {
+    const x = (i / (opponentGraphData.length - 1)) * width;
+    const y = height - (point.connections / maxConnections) * height;
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  
+  ctx.stroke();
+  
+  // Draw efficiency line (yellow)
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  
+  opponentGraphData.forEach((point, i) => {
+    const x = (i / (opponentGraphData.length - 1)) * width;
+    const y = height - (point.efficiency / 100) * height;
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  
+  ctx.stroke();
+}
+// ==================== END OPPONENT GRAPH ====================
 
 // ==================== END VERSUS MODE FUNCTIONS ====================
 
