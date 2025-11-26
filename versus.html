@@ -89,6 +89,132 @@
     #overlay button:hover { transform: translateY(-1px); }
     #overlay.hidden { display: none; }
 
+.hidden {
+  display: none !important;
+}
+
+
+/* ===== LOBBY SYSTEM STYLES ===== */
+#lobbyScreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  background: radial-gradient(circle at center, #1a1f3a 0%, #0a0e1a 100%);
+}
+
+.lobby-container {
+  max-width: 600px;
+  width: 90%;
+  padding: 32px;
+  background: rgba(10, 14, 35, 0.95);
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(79, 209, 197, 0.3);
+}
+
+.lobby-title {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #4fd1c5, #667eea);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.lobby-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+}
+
+.lobby-section h3 {
+  font-size: 18px;
+  color: #4fd1c5;
+  margin-bottom: 12px;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4fd1c5, #667eea);
+  color: white;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.input-field, select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid rgba(79, 209, 197, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-size: 14px;
+}
+
+.rule-item {
+  margin-bottom: 16px;
+}
+
+.rule-item label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+#roomCodeDisplay {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(79, 209, 197, 0.1);
+  border-radius: 12px;
+  border: 2px solid rgba(79, 209, 197, 0.5);
+  text-align: center;
+}
+
+#roomCode {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: #4fd1c5;
+  margin: 8px 0;
+}
+
+.player-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+/* ===== END LOBBY STYLES ===== */
+/* NEW: Tooltip for station/factory actions */
+
     /* NEW: Tooltip for station/factory actions */
     #actionTooltip {
       position: fixed;
@@ -2615,25 +2741,59 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
     // ==================== VERSUS MODE FUNCTIONS ====================
 
 function initializeGameWithSeed(seed) {
-  console.log('🎮 Initializing game with seed:', seed);
+console.log('🎮 Initializing game with seed:', seed);
   
   rng = new SeededRandom(seed);
   
-  // Reset game state
+  // CHECK CURRENT VALUES
+  console.log('BEFORE RESIZE:');
+  console.log('  width:', width);
+  console.log('  height:', height);
+  console.log('  window:', window.innerWidth, 'x', window.innerHeight);
+  
+  // FORCE UPDATE
+  width = window.innerWidth;
+  height = window.innerHeight;
+  
+  console.log('AFTER RESIZE:');
+  console.log('  width:', width);
+  console.log('  height:', height);
+  
+  // ===== FORCE WIDTH/HEIGHT =====
+  const canvas = document.getElementById("gameCanvas");
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
+  canvas.width = width * (window.devicePixelRatio || 1);
+  canvas.height = height * (window.devicePixelRatio || 1);
+  
+  // CRITICAL: Resize canvas FIRST
+  resizeCanvas();
+  console.log('📐 Canvas:', width, 'x', height);
+  
+  if (width === 0 || height === 0) {
+    alert('Canvas size is 0! Check console.');
+    return;
+  }
+  // Reset ALL game state
   stations = [];
   trains = [];
   trainFactories = [];
   adjacency.clear();
   edgeMeta.clear();
+  
+  // CRITICAL: Reset time to 0 (not negative!)
   elapsed = 0;
   score = 0;
   servedPassengers = 0;
   totalWaiting = 0;
-  playerMoney = matchRules ? matchRules.startMoney : 1000;
   spawnTimer = 0;
-  stationTimer = 0;
+  stationTimer = 0;  // IMPORTANT for new stations!
   nextId = 1;
   nextPassengerId = 1;
+  
+  // Reset view
   viewScale = 1;
   targetViewScale = 1;
   screenFlash = 0;
@@ -2641,24 +2801,41 @@ function initializeGameWithSeed(seed) {
   currentEfficiency = 50;
   comboMultiplier = 1.0;
   peakCombo = 1.0;
-  isRushHour = false;
-  rushHourTimer = 0;
-  activeThreats = [];
   
   // Reset modes
   mergeMode = false;
   factoryBuildMode = false;
   reopenMode = false;
   
-  // Spawn with seeded random
-  spawnInitialCity();
+  // Apply match rules
+  playerMoney = matchRules ? matchRules.startMoney : 1000;
   
-  // Hide overlay and start game
+  console.log('📐 BEFORE SPAWN:');
+console.log('   width:', width);
+console.log('   height:', height);
+console.log('   canvas.width:', canvas.width);
+console.log('   canvas.height:', canvas.height);
+
+spawnInitialCity();
+
+console.log('📐 AFTER SPAWN:');
+stations.forEach((st, i) => {
+  console.log(`   Station ${i}: x=${Math.round(st.x)}, y=${Math.round(st.y)}`);
+});
+  // Spawn initial city
+  
+  console.log('🏙️ Spawned', stations.length, 'stations at positions:');
+  stations.forEach((st, i) => {
+    console.log(`  ${i}: (${Math.round(st.x)}, ${Math.round(st.y)})`);
+  });
+  
+  // Hide overlay and start
   overlay.classList.add('hidden');
+  versusMode = true;  // CRITICAL!
   running = true;
   lastTime = performance.now();
   
-  console.log('✅ Game started! Stations:', stations.length);
+  console.log('✅ Match started!');
 }
 
 function syncGameState() {
