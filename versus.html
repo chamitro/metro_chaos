@@ -456,11 +456,11 @@ class MultiplayerClient {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
     if (isLocal) {
-      this.serverUrl = 'https://metro-chaos-server.onrender.com';
+      this.serverUrl = 'wss://metro-chaos-server.onrender.com';
     } else {
       // For production (Glitch, Heroku, etc.)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      this.serverUrl = 'https://metro-chaos-server.onrender.com';
+      this.serverUrl = 'wss://metro-chaos-server.onrender.com';
     }
     
     this.ws = null;
