@@ -6,11 +6,60 @@
   <title>Metro Chaos - Main Menu</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+    
+    @keyframes glow {
+      0%, 100% { text-shadow: 0 0 20px rgba(79, 209, 197, 0.5), 0 0 40px rgba(79, 209, 197, 0.3); }
+      50% { text-shadow: 0 0 30px rgba(79, 209, 197, 0.8), 0 0 60px rgba(79, 209, 197, 0.5); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+    }
+    
     html, body {
       width: 100%; height: 100%; overflow: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at center, #1a1f3a 0%, #0a0e1a 100%);
+      background: #0a0e1a;
       color: #f4f4f6;
+      position: relative;
+    }
+    
+    /* Animated background canvas */
+    #bgCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      opacity: 0.6;
     }
     
     .container {
@@ -19,6 +68,8 @@
       justify-content: center;
       min-height: 100vh;
       padding: 20px;
+      position: relative;
+      z-index: 1;
     }
     
     .menu-box {
@@ -26,79 +77,162 @@
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
-      padding: 32px;
-      background: rgba(10, 14, 35, 0.95);
-      border-radius: 24px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-      border: 2px solid rgba(79, 209, 197, 0.3);
+      padding: 40px;
+      background: rgba(10, 14, 35, 0.85);
+      backdrop-filter: blur(20px);
+      border-radius: 32px;
+      box-shadow: 
+        0 0 0 1px rgba(79, 209, 197, 0.1),
+        0 20px 60px rgba(0, 0, 0, 0.9),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border: 2px solid transparent;
+      background-clip: padding-box;
+      position: relative;
+      animation: slideInUp 0.8s ease-out;
+    }
+    
+    .menu-box::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 32px;
+      padding: 2px;
+      background: linear-gradient(135deg, #4fd1c5, #667eea, #b794f4);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0.6;
+      z-index: -1;
     }
     
     .title {
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 40px;
+      animation: float 3s ease-in-out infinite;
     }
     
     .title h1 {
-      font-size: 48px;
+      font-size: 56px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #4fd1c5 0%, #667eea 50%, #b794f4 100%);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      animation: glow 2s ease-in-out infinite, shimmer 3s linear infinite;
+      letter-spacing: 2px;
+      position: relative;
+    }
+    
+    .title h1::after {
+      content: '🚇';
+      position: absolute;
+      left: -60px;
+      animation: float 2s ease-in-out infinite;
+    }
+    
+    .title h1::before {
+      content: '🚇';
+      position: absolute;
+      right: -60px;
+      animation: float 2s ease-in-out infinite 1s;
+    }
+    
+    .subtitle {
+      font-size: 20px;
+      font-weight: 600;
+      color: #4fd1c5;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      opacity: 0.9;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .rules-section {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 20px;
+      padding: 28px;
+      margin-bottom: 32px;
+      border: 1px solid rgba(79, 209, 197, 0.2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      animation: slideInUp 0.8s ease-out 0.2s both;
+    }
+    
+    .section-title {
+      font-size: 28px;
       font-weight: 800;
       background: linear-gradient(135deg, #4fd1c5, #667eea);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 8px;
-      text-shadow: 0 4px 12px rgba(79, 209, 197, 0.3);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: 1px;
     }
     
-    .subtitle {
-      font-size: 18px;
-      opacity: 0.8;
-      color: #a0aec0;
+    .rule-card {
+      padding: 18px 20px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      border: 1px solid transparent;
+      position: relative;
+      overflow: hidden;
     }
     
-    .rules-section {
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    .rule-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s;
     }
     
-    .section-title {
-      font-size: 24px;
+    .rule-card:hover::before {
+      left: 100%;
+    }
+    
+    .rule-card:hover {
+      transform: translateX(8px);
+      box-shadow: -4px 0 0 0 currentColor, 0 8px 20px rgba(0,0,0,0.3);
+      border-color: currentColor;
+    }
+    
+    .rule-card h3 {
+      font-size: 17px;
       font-weight: 700;
-      color: #4fd1c5;
-      margin-bottom: 16px;
+      margin-bottom: 10px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
     
-    .rule-card {
-      padding: 16px;
-      border-radius: 12px;
-      margin-bottom: 12px;
-    }
-    
-    .rule-card h3 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    
     .rule-card ul {
       margin: 0;
-      padding-left: 20px;
+      padding-left: 24px;
       font-size: 14px;
-      line-height: 1.8;
-      opacity: 0.9;
+      line-height: 1.9;
+      opacity: 0.95;
     }
     
     .rule-card li {
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      transition: transform 0.2s;
+    }
+    
+    .rule-card li:hover {
+      transform: translateX(4px);
     }
     
     .rule-card strong {
-      font-weight: 600;
+      font-weight: 700;
+      color: inherit;
     }
     
     .core { background: rgba(79, 209, 197, 0.05); border-left: 4px solid #4fd1c5; }
@@ -120,92 +254,154 @@
     .fail h3 { color: #fc8181; }
     
     .mode-selection {
-      margin-top: 32px;
+      margin-top: 40px;
+      animation: slideInUp 0.8s ease-out 0.4s both;
     }
     
     .mode-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
+      gap: 20px;
+      margin-bottom: 20px;
     }
     
     .mode-btn {
-      padding: 24px;
-      border-radius: 16px;
+      padding: 28px;
+      border-radius: 20px;
       border: 3px solid;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       text-decoration: none;
       display: block;
       color: inherit;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+    
+    .mode-btn::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.3), transparent);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    
+    .mode-btn:hover::after {
+      width: 300px;
+      height: 300px;
     }
     
     .mode-btn:hover {
-      transform: scale(1.05);
+      transform: translateY(-8px) scale(1.02);
+      filter: brightness(1.2);
+    }
+    
+    .mode-btn:active {
+      transform: translateY(-4px) scale(0.98);
     }
     
     .story-btn {
       border-color: #667eea;
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25));
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
     }
     
     .story-btn:hover {
-      box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 16px 40px rgba(102, 126, 234, 0.5), 0 0 40px rgba(102, 126, 234, 0.3);
+      border-color: #8b9eff;
     }
     
     .survival-btn {
       border-color: #4fd1c5;
-      background: linear-gradient(135deg, rgba(79, 209, 197, 0.2), rgba(56, 178, 172, 0.2));
+      background: linear-gradient(135deg, rgba(79, 209, 197, 0.25), rgba(56, 178, 172, 0.25));
+      box-shadow: 0 8px 24px rgba(79, 209, 197, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
     }
     
     .survival-btn:hover {
-      box-shadow: 0 12px 30px rgba(79, 209, 197, 0.4);
+      box-shadow: 0 16px 40px rgba(79, 209, 197, 0.5), 0 0 40px rgba(79, 209, 197, 0.3);
+      border-color: #6fffe8;
     }
     
     .versus-btn {
       border-color: #ffd700;
-      background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 165, 0, 0.25));
+      box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
     }
     
     .versus-btn:hover {
-      box-shadow: 0 12px 30px rgba(255, 215, 0, 0.4);
+      box-shadow: 0 16px 40px rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.3);
+      border-color: #ffed4e;
     }
     
     .mode-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
+      font-size: 40px;
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: float 3s ease-in-out infinite;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+    
+    .mode-btn:hover .mode-icon {
+      animation: pulse 0.6s ease-in-out;
     }
     
     .mode-title {
-      font-size: 20px;
-      font-weight: 700;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .story-title { 
+      background: linear-gradient(135deg, #667eea, #b794f4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .survival-title { 
+      background: linear-gradient(135deg, #4fd1c5, #38b2ac);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .versus-title { 
+      background: linear-gradient(135deg, #ffd700, #ffa500);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .mode-desc {
+      font-size: 14px;
+      opacity: 0.95;
+      line-height: 1.8;
       margin-bottom: 8px;
     }
     
-    .story-title { color: #667eea; }
-    .survival-title { color: #4fd1c5; }
-    .versus-title { color: #ffd700; }
-    
-    .mode-desc {
-      font-size: 13px;
-      opacity: 0.9;
-      line-height: 1.6;
-    }
-    
     .mode-progress {
-      margin-top: 12px;
-      padding: 8px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      font-size: 12px;
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(5px);
     }
     
     .tip {
       text-align: center;
       opacity: 0.7;
-      font-size: 12px;
-      margin-top: 16px;
+      font-size: 13px;
+      margin-top: 20px;
+      font-style: italic;
+      animation: pulse 3s ease-in-out infinite;
     }
     
     @media (max-width: 768px) {
@@ -230,12 +426,15 @@
   </style>
 </head>
 <body>
+  <!-- Animated Background -->
+  <canvas id="bgCanvas"></canvas>
+  
   <div class="container">
     <div class="menu-box">
       
       <!-- Title -->
       <div class="title">
-        <h1>🚇 METRO CHAOS 🚇</h1>
+        <h1> METRO CHAOS </h1>
         <p class="subtitle">Build. Connect. Survive.</p>
       </div>
 
@@ -245,7 +444,7 @@
         
         <!-- Core Mechanics -->
         <div class="rule-card core">
-          <h3>🎮 Core Mechanics</h3>
+          <h3>Game Mechanics</h3>
           <ul>
             <li><strong>Connect Stations:</strong> Click and drag between stations to create rail connections</li>
             <li><strong>Passengers:</strong> Appear at stations and need to reach their destination</li>
@@ -257,7 +456,7 @@
 
         <!-- Money System -->
         <div class="rule-card money">
-          <h3>💰 Money System</h3>
+          <h3> Money System</h3>
           <ul>
             <li><strong>Starting Money:</strong> Each station starts with <strong>$1000</strong></li>
             <li><strong>Money Drain:</strong> Active stations lose <strong>$2 per second</strong></li>
@@ -269,7 +468,7 @@
 
         <!-- Factory System -->
         <div class="rule-card factory">
-          <h3>🏭 Factory System</h3>
+          <h3> Factory System</h3>
           <ul>
             <li><strong>Build Factories:</strong> Right-click empty areas, costs <strong>$200</strong> (increases by $100 each)</li>
             <li><strong>Train Production:</strong> First train in <strong>10 seconds</strong>, then <strong>25 seconds</strong> each</li>
@@ -281,7 +480,7 @@
 
         <!-- Connection Quality -->
         <div class="rule-card connection">
-          <h3>🛤️ Connection Quality</h3>
+          <h3> Connection Quality</h3>
           <ul>
             <li><strong>🟢 Green (Fast):</strong> Distance &lt; 150 pixels - trains move at full speed</li>
             <li><strong>🟡 Yellow (Medium):</strong> Distance 150-300 - trains slightly slower</li>
@@ -292,7 +491,7 @@
 
         <!-- Advanced Features -->
         <div class="rule-card advanced">
-          <h3>⭐ Advanced Features</h3>
+          <h3> Advanced Features</h3>
           <ul>
             <li><strong>Merge Stations:</strong> Combine 3+ stations into mega hub, costs <strong>$500</strong></li>
             <li><strong>Mega Stations:</strong> Higher capacity, can be refueled by factories</li>
@@ -305,7 +504,7 @@
 
         <!-- Fail Conditions -->
         <div class="rule-card fail">
-          <h3>💀 Fail Conditions</h3>
+          <h3> Fail Conditions</h3>
           <ul>
             <li><strong>Station Overcrowded:</strong> Any station exceeds its capacity limit</li>
             <li><strong>Economic Collapse:</strong> 60% or more of stations close (run out of money)</li>
@@ -316,12 +515,12 @@
 
       <!-- Mode Selection -->
       <div class="mode-selection">
-        <h2 class="section-title">🎯 Select Game Mode</h2>
+        <h2 class="section-title"> Select Game Mode</h2>
         
         <div class="mode-grid" style="grid-template-columns: 1fr 1fr 1fr;">
           <!-- Story Mode -->
           <a href="levels.html" class="mode-btn story-btn">
-            <div class="mode-icon">📖</div>
+            <div class="mode-icon"></div>
             <div class="mode-title story-title">STORY MODE</div>
             <div class="mode-desc">
               • 20 challenging levels<br>
@@ -336,7 +535,7 @@
 
           <!-- Survival Mode -->
           <a href="survival.html" class="mode-btn survival-btn">
-            <div class="mode-icon">♾️</div>
+            <div class="mode-icon"></div>
             <div class="mode-title survival-title">SURVIVAL MODE</div>
             <div class="mode-desc">
               • Endless gameplay<br>
@@ -351,7 +550,7 @@
 
           <!-- Versus Mode -->
           <a href="versus.html" class="mode-btn versus-btn">
-            <div class="mode-icon">⚔️</div>
+            <div class="mode-icon"></div>
             <div class="mode-title versus-title">VERSUS MODE</div>
             <div class="mode-desc">
               • Online 1v1 battles<br>
@@ -374,6 +573,102 @@
   </div>
 
   <script>
+    // Animated Background
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+    
+    const particles = [];
+    const particleCount = 80;
+    
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 0.5;
+        this.vy = (Math.random() - 0.5) * 0.5;
+        this.radius = Math.random() * 2 + 1;
+        this.opacity = Math.random() * 0.5 + 0.3;
+        this.color = ['#4fd1c5', '#667eea', '#b794f4', '#ffd700'][Math.floor(Math.random() * 4)];
+      }
+      
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+      }
+      
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = this.opacity;
+        ctx.fill();
+        
+        // Glow effect
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+    
+    // Initialize particles
+    for (let i = 0; i < particleCount; i++) {
+      particles.push(new Particle());
+    }
+    
+    // Draw connections between close particles
+    function drawConnections() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 150) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = particles[i].color;
+            ctx.globalAlpha = (150 - distance) / 150 * 0.2;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+    
+    // Animation loop
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+      
+      particles.forEach(particle => {
+        particle.update();
+        particle.draw();
+      });
+      
+      drawConnections();
+      
+      requestAnimationFrame(animate);
+    }
+    
+    animate();
+    
     // Load saved progress
     const storyLevel = parseInt(localStorage.getItem("metroChaosLevel")) || 1;
     const survivalBest = parseInt(localStorage.getItem("metroChaosEndlessBest")) || 0;
