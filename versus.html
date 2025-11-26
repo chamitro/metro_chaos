@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Metro Chaos - Versus Mode</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #171c32 0, #050812 60%);
+      color: #f4f4f6;
+    }
+
+    /* Lobby Screen */
+    #lobbyScreen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      background: radial-gradient(circle at center, #1a1f3a 0%, #0a0e1a 100%);
+    }
+
+    .lobby-container {
+      max-width: 600px;
+      width: 90%;
+      padding: 32px;
+      background: rgba(10, 14, 35, 0.95);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      border: 2px solid rgba(79, 209, 197, 0.3);
+    }
+
+    .lobby-title {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #4fd1c5, #667eea);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .lobby-section {
+      margin-bottom: 24px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+    }
+
+    .lobby-section h3 {
+      font-size: 18px;
+      color: #4fd1c5;
+      margin-bottom: 12px;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4fd1c5, #667eea);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(79, 209, 197, 0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 2px solid rgba(79, 209, 197, 0.3);
+      background: rgba(0, 0, 0, 0.3);
+      color: white;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .rule-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .rule-option:last-child {
+      border-bottom: none;
+    }
+
+    .rule-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .rule-value {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    select, input[type="number"] {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 2px solid rgba(79, 209, 197, 0.3);
+      background: rgba(0, 0, 0, 0.3);
+      color: white;
+      font-size: 14px;
+    }
+
+    .status-message {
+      text-align: center;
+      padding: 12px;
+      background: rgba(79, 209, 197, 0.1);
+      border-radius: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .player-info {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px;
+      background: rgba(102, 126, 234, 0.1);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .waiting {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    #gameCanvas {
+      display: block;
+    }
+
+    /* Split Screen for Versus */
+    .split-view {
+      position: fixed;
+      top: 0;
+      width: 50%;
+      height: 100%;
+      border-right: 2px solid rgba(79, 209, 197, 0.5);
+    }
+
+    .split-left {
+      left: 0;
+    }
+
+    .split-right {
+      right: 0;
+      border-left: 2px solid rgba(79, 209, 197, 0.5);
+      border-right: none;
+    }
+
+    .player-hud {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      background: rgba(10, 14, 35, 0.9);
+      border-radius: 12px;
+      font-size: 14px;
+      z-index: 10;
+    }
+
+    .opponent-view {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 200px;
+      height: 150px;
+      background: rgba(10, 14, 35, 0.95);
+      border: 2px solid rgba(79, 209, 197, 0.5);
+      border-radius: 12px;
+      padding: 8px;
+      z-index: 10;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .match-timer {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      font-weight: 800;
+      color: #4fd1c5;
+      text-shadow: 0 4px 20px rgba(79, 209, 197, 0.6);
+      z-index: 100;
+    }
+
+    .winner-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .winner-content {
+      text-align: center;
+      padding: 48px;
+      background: rgba(10, 14, 35, 0.95);
+      border-radius: 24px;
+      border: 3px solid #4fd1c5;
+    }
+
+    .winner-title {
+      font-size: 64px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+
+    .copy-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: none;
+      background: rgba(79, 209, 197, 0.2);
+      color: #4fd1c5;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: rgba(79, 209, 197, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <!-- Lobby Screen -->
+  <div id="lobbyScreen">
+    <div class="lobby-container">
+      <h1 class="lobby-title">⚔️ VERSUS MODE ⚔️</h1>
+
+      <!-- Create/Join Section -->
+      <div id="modeSelection">
+        <div class="button-group">
+          <button class="btn btn-primary" id="createMatchBtn">🎮 Create Match</button>
+          <button class="btn btn-secondary" id="joinMatchBtn">🔗 Join Match</button>
+        </div>
+      </div>
+
+      <!-- Create Match Screen -->
+      <div id="createMatchScreen" class="hidden">
+        <div class="lobby-section">
+          <h3>📋 Match Rules</h3>
+          
+          <div class="rule-option">
+            <span class="rule-label">Match Duration</span>
+            <div class="rule-value">
+              <input type="number" id="matchDuration" value="5" min="1" max="60" style="width: 60px;">
+              <span>minutes</span>
+            </div>
+          </div>
+
+          <div class="rule-option">
+            <span class="rule-label">Win Condition</span>
+            <select id="winCondition">
+              <option value="passengers">Most Passengers Served</option>
+              <option value="money">Most Money Earned</option>
+              <option value="stations">Most Stations Built</option>
+              <option value="efficiency">Highest Efficiency</option>
+            </select>
+          </div>
+
+          <div class="rule-option">
+            <span class="rule-label">Max Connections Per Station</span>
+            <select id="maxConnections">
+              <option value="999">Unlimited</option>
+              <option value="3">3 Connections</option>
+              <option value="4">4 Connections</option>
+              <option value="5">5 Connections</option>
+            </select>
+          </div>
+
+          <div class="rule-option">
+            <span class="rule-label">Starting Money</span>
+            <div class="rule-value">
+              <span>$</span>
+              <input type="number" id="startMoney" value="1000" min="100" max="5000" step="100" style="width: 80px;">
+            </div>
+          </div>
+
+          <div class="rule-option">
+            <span class="rule-label">Difficulty</span>
+            <select id="difficulty">
+              <option value="0.5">Easy</option>
+              <option value="1.0" selected>Normal</option>
+              <option value="1.5">Hard</option>
+              <option value="2.0">Expert</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="createRoomBtn" style="width: 100%;">Create Room & Get Code</button>
+
+        <div id="roomCodeDisplay" class="hidden">
+          <div class="status-message">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">🎮 Room Created!</div>
+            <div style="margin-bottom: 12px;">Share this code with your opponent:</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span id="roomCode" style="font-size: 24px; font-weight: 800; letter-spacing: 2px; color: #4fd1c5;">------</span>
+              <button class="copy-btn" id="copyCodeBtn">📋 Copy</button>
+            </div>
+            <div class="waiting" style="margin-top: 12px;">Waiting for opponent...</div>
+          </div>
+        </div>
+
+        <button class="btn btn-secondary" id="backFromCreate" style="width: 100%; margin-top: 12px;">← Back</button>
+      </div>
+
+      <!-- Join Match Screen -->
+      <div id="joinMatchScreen" class="hidden">
+        <div class="lobby-section">
+          <h3>🔗 Join Match</h3>
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; opacity: 0.8;">Enter Room Code:</label>
+          <input type="text" id="joinCode" class="input-field" placeholder="Enter 6-digit code" maxlength="6" style="text-transform: uppercase; letter-spacing: 2px; font-size: 18px; text-align: center;">
+          <button class="btn btn-primary" id="joinRoomBtn" style="width: 100%;">Join Room</button>
+        </div>
+
+        <div id="joinStatus" class="hidden">
+          <div class="status-message waiting">
+            Connecting...
+          </div>
+        </div>
+
+        <button class="btn btn-secondary" id="backFromJoin" style="width: 100%; margin-top: 12px;">← Back</button>
+      </div>
+
+      <!-- Match Found Screen -->
+      <div id="matchFoundScreen" class="hidden">
+        <div class="lobby-section">
+          <h3>✅ Match Found!</h3>
+          
+          <div class="player-info">
+            <span>👤 You:</span>
+            <span id="yourName">Player 1</span>
+          </div>
+
+          <div class="player-info">
+            <span>👤 Opponent:</span>
+            <span id="opponentName">Player 2</span>
+          </div>
+
+          <div style="margin-top: 16px; padding: 12px; background: rgba(79, 209, 197, 0.1); border-radius: 8px;">
+            <div style="font-weight: 600; margin-bottom: 8px;">📋 Match Rules:</div>
+            <div style="font-size: 13px; line-height: 1.6;">
+              • Duration: <span id="displayDuration">5</span> minutes<br>
+              • Win by: <span id="displayWinCondition">Most passengers</span><br>
+              • Max connections: <span id="displayMaxConnections">Unlimited</span><br>
+              • Starting money: $<span id="displayStartMoney">1000</span><br>
+              • Difficulty: <span id="displayDifficulty">Normal</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-message">
+          <div class="waiting">Waiting for host to start...</div>
+        </div>
+
+        <button class="btn btn-primary" id="startMatchBtn" style="width: 100%;">🚀 Start Match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Screen (hidden initially) -->
+  <div id="gameScreen" class="hidden">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="player-hud">
+      <div style="font-weight: 600; color: #4fd1c5;">You</div>
+      <div id="yourStats" style="font-size: 12px; margin-top: 4px;">
+        Passengers: <span id="yourPassengers">0</span> | Money: $<span id="yourMoney">0</span>
+      </div>
+    </div>
+
+    <div class="opponent-view">
+      <div style="font-weight: 600; color: #fc8181; margin-bottom: 8px;">Opponent</div>
+      <div id="opponentStats" style="font-size: 11px; line-height: 1.6;">
+        Passengers: <span id="oppPassengers">0</span><br>
+        Money: $<span id="oppMoney">0</span><br>
+        Stations: <span id="oppStations">0</span><br>
+        Trains: <span id="oppTrains">0</span>
+      </div>
+    </div>
+
+    <div id="matchTimer" class="match-timer hidden">3:00</div>
+  </div>
+
+  <!-- Winner Screen -->
+  <div id="winnerScreen" class="winner-overlay hidden">
+    <div class="winner-content">
+      <div class="winner-title" id="winnerText">🏆 YOU WIN! 🏆</div>
+      <div style="font-size: 24px; margin-bottom: 24px; opacity: 0.8;">
+        <span id="winnerScore">1000</span> vs <span id="loserScore">800</span>
+      </div>
+      <div style="font-size: 16px; opacity: 0.7; margin-bottom: 32px;" id="winnerCondition">
+        Most Passengers Served
+      </div>
+      <button class="btn btn-primary" id="playAgainBtn">Play Again</button>
+      <button class="btn btn-secondary" id="backToLobbyBtn" style="margin-top: 12px;">Back to Lobby</button>
+    </div>
+  </div>
+
+  <script>
+    // Simple P2P connection using PeerJS (we'll use a simplified version with room codes)
+    // In production, you'd use a signaling server
+    
+// ==================== MULTIPLAYER CLIENT ====================
+class MultiplayerClient {
+  constructor() {
+    // Auto-detect server URL
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocal) {
+      this.serverUrl = 'ws://localhost:3000';
+    } else {
+      // For production (Glitch, Heroku, etc.)
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      this.serverUrl = 'wss://metro-chaos-server.onrender.com';
+    }
+    
+    this.ws = null;
+    this.connected = false;
+    this.handlers = {};
+    this.isHost = false;
+    this.roomCode = null;
+  }
+
+  connect() {
+    return new Promise((resolve, reject) => {
+      console.log('🔌 Connecting to:', this.serverUrl);
+      this.ws = new WebSocket(this.serverUrl);
+      
+      this.ws.onopen = () => {
+        console.log('✅ Connected to server!');
+        this.connected = true;
+        this.showStatus('Connected ✅', 'success');
+        resolve();
+      };
+      
+      this.ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('📨 Received:', message.type);
+          
+          if (this.handlers[message.type]) {
+            this.handlers[message.type](message.payload);
+          }
+        } catch (error) {
+          console.error('Error handling message:', error);
+        }
+      };
+      
+      this.ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+        this.showStatus('Connection Error ❌', 'error');
+        reject(error);
+      };
+      
+      this.ws.onclose = () => {
+        console.log('🔌 Disconnected from server');
+        this.connected = false;
+        this.showStatus('Disconnected', 'warning');
+      };
+    });
+  }
+
+  showStatus(message, type) {
+    const colors = {
+      success: '#48bb78',
+      error: '#fc8181',
+      warning: '#ed8936'
+    };
+    
+    const indicator = document.createElement('div');
+    indicator.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: ${colors[type] || colors.success};
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 99999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    `;
+    indicator.textContent = message;
+    document.body.appendChild(indicator);
+    
+    setTimeout(() => indicator.remove(), 3000);
+  }
+
+  on(event, handler) {
+    this.handlers[event] = handler;
+  }
+
+  send(type, payload) {
+    if (!this.connected) {
+      console.error('Not connected to server');
+      return false;
+    }
+    this.ws.send(JSON.stringify({ type, payload }));
+    return true;
+  }
+
+  createRoom(rules, playerName) {
+    this.isHost = true;
+    this.send('CREATE_ROOM', { rules, playerName: playerName || 'Player 1' });
+  }
+
+  joinRoom(roomCode, playerName) {
+    this.isHost = false;
+    this.roomCode = roomCode;
+    this.send('JOIN_ROOM', { roomCode, playerName: playerName || 'Player 2' });
+  }
+
+  startMatch() {
+    if (!this.isHost) {
+      console.error('Only host can start match');
+      return;
+    }
+    this.send('START_MATCH', {});
+  }
+
+  sendGameUpdate(state) {
+    this.send('GAME_UPDATE', state);
+  }
+
+  leaveRoom() {
+    this.send('LEAVE_ROOM', {});
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.ws.close();
+    }
+  }
+}
+
+// ==================== INITIALIZE CLIENT ====================
+const mpClient = new MultiplayerClient();
+
+// Connect when page loads
+window.addEventListener('load', () => {
+  mpClient.connect().then(() => {
+    console.log('🎮 Multiplayer ready!');
+  }).catch(error => {
+    console.error('Failed to connect:', error);
+    alert('Could not connect to server. Make sure the server is running!');
+  });
+});
+
+// ==================== HOOK UP BUTTONS ====================
+
+// Create Room
+document.getElementById('createRoomBtn').addEventListener('click', function() {
+  const rules = {
+    duration: parseInt(document.getElementById('matchDuration').value),
+    winCondition: document.getElementById('winCondition').value,
+    maxConnections: parseInt(document.getElementById('maxConnections').value),
+    startMoney: parseInt(document.getElementById('startMoney').value),
+    difficulty: parseFloat(document.getElementById('difficulty').value)
+  };
+  
+  isHost = true;
+  matchRules = rules;
+  
+  mpClient.createRoom(rules, 'Player 1');
+});
+
+// Handle Room Created
+mpClient.on('ROOM_CREATED', function(data) {
+  console.log('✅ Room created:', data.roomCode);
+  roomCode = data.roomCode;
+  matchRules = data.rules;
+  
+  document.getElementById('roomCode').textContent = data.roomCode;
+  document.getElementById('roomCodeDisplay').classList.remove('hidden');
+});
+
+// Join Room
+document.getElementById('joinRoomBtn').addEventListener('click', function() {
+  const code = document.getElementById('joinCode').value.toUpperCase().trim();
+  
+  if (code.length !== 6) {
+    alert('Please enter a valid 6-digit room code');
+    return;
+  }
+  
+  document.getElementById('joinStatus').classList.remove('hidden');
+  mpClient.joinRoom(code, 'Player 2');
+});
+
+// Handle Match Found
+mpClient.on('MATCH_FOUND', function(data) {
+  console.log('🎮 Match found!', data);
+  
+  isHost = data.isHost;
+  roomCode = data.roomCode;
+  matchRules = data.rules;
+  
+  // Hide previous screens
+  createMatchScreen.classList.add('hidden');
+  joinMatchScreen.classList.add('hidden');
+  
+  // Show match found screen
+  matchFoundScreen.classList.remove('hidden');
+  
+  // Set player names
+  document.getElementById('yourName').textContent = data.isHost ? 
+    `${data.hostName} (You)` : `${data.opponentName} (You)`;
+  document.getElementById('opponentName').textContent = data.isHost ? 
+    data.opponentName : data.hostName;
+  
+  // Display rules
+  document.getElementById('displayDuration').textContent = data.rules.duration;
+  
+  const winConditions = {
+    passengers: 'Most passengers served',
+    money: 'Most money earned',
+    stations: 'Most stations built',
+    efficiency: 'Highest efficiency'
+  };
+  document.getElementById('displayWinCondition').textContent = 
+    winConditions[data.rules.winCondition];
+  
+  document.getElementById('displayMaxConnections').textContent = 
+    data.rules.maxConnections === 999 ? 'Unlimited' : data.rules.maxConnections;
+  document.getElementById('displayStartMoney').textContent = data.rules.startMoney;
+  
+  const difficulties = { 0.5: 'Easy', 1.0: 'Normal', 1.5: 'Hard', 2.0: 'Expert' };
+  document.getElementById('displayDifficulty').textContent = 
+    difficulties[data.rules.difficulty];
+  
+  // Only host can start
+  const startBtn = document.getElementById('startMatchBtn');
+  if (!data.isHost) {
+    startBtn.style.display = 'none';
+  } else {
+    startBtn.style.display = 'block';
+  }
+});
+
+// Start Match (host only)
+document.getElementById('startMatchBtn').addEventListener('click', function() {
+  console.log('🚀 Starting match...');
+  mpClient.startMatch();
+});
+
+// Handle Match Start
+mpClient.on('MATCH_START', function(data) {
+  console.log('🎮 Match starting!');
+  matchEndTime = Date.now() + (matchRules.duration * 60 * 1000);
+  beginMatch();
+});
+
+// Handle Opponent Updates
+mpClient.on('OPPONENT_UPDATE', function(data) {
+  opponentScore = {
+    passengers: data.passengers || 0,
+    money: data.money || 0,
+    stations: data.stations || 0,
+    trains: data.trains || 0,
+    efficiency: data.efficiency || 0
+  };
+  updateMatchUI();
+});
+
+// Handle Opponent Left
+mpClient.on('OPPONENT_LEFT', function(data) {
+  alert('Your opponent has disconnected. You win by default!');
+  gameStarted = false;
+  showWinner(true); // Force win
+});
+
+// Handle Errors
+mpClient.on('ERROR', function(data) {
+  alert('Error: ' + data.message);
+  console.error('Server error:', data);
+});
+
+// ==================== GAME STATE SYNC ====================
+
+let syncInterval = null;
+
+function syncGameState() {
+  if (!gameStarted || !mpClient.connected) return;
+  
+  mpClient.sendGameUpdate({
+    passengers: yourScore.passengers,
+    money: yourScore.money,
+    stations: yourScore.stations,
+    trains: yourScore.trains || 0,
+    efficiency: yourScore.efficiency,
+    timestamp: Date.now()
+  });
+}
+
+// ==================== MODIFIED beginMatch() ====================
+function beginMatch() {
+  lobbyScreen.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+  
+  gameStarted = true;
+  
+  // Initialize game with rules
+  yourScore.money = matchRules.startMoney;
+  opponentScore.money = matchRules.startMoney;
+  
+  updateMatchUI();
+  startMatchTimer();
+  
+  // Start the actual game simulation
+  simulateMatch();
+  
+  // Start syncing game state every second
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(syncGameState, 1000);
+}
+
+// ==================== MODIFIED endMatch() ====================
+function showWinner(forceWin) {
+  gameStarted = false;
+  
+  // Stop syncing
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
+  }
+  
+  document.getElementById('matchTimer').classList.add('hidden');
+  
+  // Determine winner
+  const yourValue = forceWin ? 999999 : yourScore[matchRules.winCondition];
+  const oppValue = opponentScore[matchRules.winCondition];
+  
+  const youWin = yourValue > oppValue;
+  
+  document.getElementById('winnerText').textContent = 
+    youWin ? '🏆 YOU WIN! 🏆' : '💀 YOU LOSE 💀';
+  document.getElementById('winnerScore').textContent = yourValue;
+  document.getElementById('loserScore').textContent = oppValue;
+  
+  const conditions = {
+    passengers: 'Passengers Served',
+    money: 'Money Earned',
+    stations: 'Stations Built',
+    efficiency: 'Average Efficiency'
+  };
+  document.getElementById('winnerCondition').textContent = 
+    conditions[matchRules.winCondition];
+  
+  winnerScreen.classList.remove('hidden');
+}
+
+// ==================== CLEAN UP ====================
+window.addEventListener('beforeunload', function() {
+  if (mpClient.connected) {
+    mpClient.leaveRoom();
+    mpClient.disconnect();
+  }
+});
+
+// Back to lobby button
+document.getElementById('backToLobbyBtn').addEventListener('click', function() {
+  mpClient.leaveRoom();
+  
+  // Reset
+  winnerScreen.classList.add('hidden');
+  gameScreen.classList.add('hidden');
+  matchFoundScreen.classList.add('hidden');
+  lobbyScreen.classList.remove('hidden');
+  modeSelection.classList.remove('hidden');
+  
+  gameStarted = false;
+  roomCode = '';
+  isHost = false;
+  
+  yourScore = { passengers: 0, money: 1000, stations: 4, efficiency: 50 };
+  opponentScore = { passengers: 0, money: 1000, stations: 4, efficiency: 50 };
+});
+  </script>
+</body>
+</html>
