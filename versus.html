@@ -4109,33 +4109,12 @@ const barHeight = 7
     });
 
     // ----- Initial screen -----
-    spawnInitialCity();
-    updateHUD();
-    overlayTitle.textContent = "Metro Manager – Endless Run";
-    overlayMessage.textContent =
-      "Build an endless metro network. New stations and trains appear over time. If any station fills up, you lose and start fresh!\n\nShort connections = faster trains. Long connections = slower trains. Compete for the high score!";
-    overlayMetrics.innerHTML = `
-      <p style="margin: 12px 0; font-size: 13px; opacity: 0.8;">
-        <strong>🎮 How to Play:</strong><br>
-        • Connect stations by dragging between them<br>
-        • New stations appear with 8s grace period (green ring)<br>
-        • Keep all stations below capacity or game over!<br>
-        • Stations need money - earn it by serving passengers<br><br>
-        <strong>🏭 Train Production:</strong><br>
-        • Start with 2 factories<br>
-        • Each factory: first train in 10s, then 25s per train<br>
-        • Right-click empty areas to build more factories ($500)<br>
-        • More factories = more trains = handle more passengers!<br><br>
-        <strong>💚 Reopening Stations:</strong><br>
-        • Click "💚 Reopen Station" then drag to select closed stations (💀)<br>
-        • Cost: $200 per station<br>
-        • ⚠️ If 60% of stations close, you lose!<br><br>
-        <strong>⚠️ Game Over = Complete Reset</strong><br>
-        Try to beat your high score! 🏆
-      </p>
-    `;
-    overlayButton.textContent = "Start Run";
-    overlay.classList.remove("hidden");
+    // ----- Initial screen - VERSUS MODE -----
+    // Hide survival overlay and show lobby
+    overlay.classList.add("hidden");
+    document.getElementById('lobbyScreen').classList.remove('hidden');
+    
+    console.log('🎮 Versus mode ready!');
   </script>
 </body>
 </html>
