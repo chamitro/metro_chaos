@@ -590,7 +590,7 @@ mpClient.on('ERROR', function(data) {
 
 // Play Again
 document.getElementById('playAgainBtn').addEventListener('click', function() {
-  document.getElementById('winnerScreen').classList.add('hidden');
+  document.getElementById('winnerScreen').style.display = 'none';
   document.getElementById('matchTimerDisplay').style.display = 'none';
   document.getElementById('opponentPanel').style.display = 'none';
   document.getElementById('lobbyScreen').classList.remove('hidden');
@@ -2722,8 +2722,8 @@ function endMatch(forceWin) {
   document.getElementById('yourFinalScore').textContent = yourValue;
   document.getElementById('oppFinalScore').textContent = oppValue;
   
-  document.getElementById('winnerScreen').classList.remove('hidden');
-}
+  document.getElementById('winnerScreen').style.display = 'flex';
+  }
 
 // ==================== END VERSUS MODE FUNCTIONS ====================
 
