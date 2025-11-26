@@ -2612,6 +2612,120 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
 
       spawnInitialCity();
     }
+    // ==================== VERSUS MODE FUNCTIONS ====================
+
+function initializeGameWithSeed(seed) {
+  console.log('🎮 Initializing game with seed:', seed);
+  
+  rng = new SeededRandom(seed);
+  
+  // Reset game state
+  stations = [];
+  trains = [];
+  trainFactories = [];
+  adjacency.clear();
+  edgeMeta.clear();
+  elapsed = 0;
+  score = 0;
+  servedPassengers = 0;
+  totalWaiting = 0;
+  playerMoney = matchRules ? matchRules.startMoney : 1000;
+  spawnTimer = 0;
+  stationTimer = 0;
+  nextId = 1;
+  nextPassengerId = 1;
+  viewScale = 1;
+  targetViewScale = 1;
+  screenFlash = 0;
+  newStationPulse = null;
+  currentEfficiency = 50;
+  comboMultiplier = 1.0;
+  peakCombo = 1.0;
+  isRushHour = false;
+  rushHourTimer = 0;
+  activeThreats = [];
+  
+  // Reset modes
+  mergeMode = false;
+  factoryBuildMode = false;
+  reopenMode = false;
+  
+  // Spawn with seeded random
+  spawnInitialCity();
+  
+  // Hide overlay and start game
+  overlay.classList.add('hidden');
+  running = true;
+  lastTime = performance.now();
+  
+  console.log('✅ Game started! Stations:', stations.length);
+}
+
+function syncGameState() {
+  if (!versusMode) return;
+  
+  mpClient.sendGameUpdate({
+    passengers: servedPassengers,
+    money: playerMoney,
+    stations: stations.length,
+    trains: trains.length,
+    timestamp: Date.now()
+  });
+}
+
+function updateMatchTimer() {
+  if (!versusMode) return;
+  
+  const remaining = matchEndTime - Date.now();
+  
+  if (remaining <= 0) {
+    clearInterval(timerInterval);
+    endMatch(false);
+    return;
+  }
+  
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  
+  document.getElementById('matchTimer').textContent = 
+    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function endMatch(forceWin) {
+  versusMode = false;
+  running = false;
+  
+  if (syncInterval) clearInterval(syncInterval);
+  if (timerInterval) clearInterval(timerInterval);
+  
+  document.getElementById('matchTimerDisplay').style.display = 'none';
+  document.getElementById('opponentPanel').style.display = 'none';
+  
+  const yourValue = forceWin ? 999999 : 
+    (matchRules.winCondition === 'passengers' ? servedPassengers :
+     matchRules.winCondition === 'money' ? playerMoney :
+     stations.length);
+  
+  const oppValue = forceWin ? 0 :
+    (matchRules.winCondition === 'passengers' ? opponentScore.passengers :
+     matchRules.winCondition === 'money' ? opponentScore.money :
+     opponentScore.stations);
+  
+  const youWin = yourValue > oppValue;
+  
+  document.getElementById('winnerText').textContent = 
+    youWin ? '🏆 YOU WIN! 🏆' : '💀 YOU LOSE 💀';
+  document.getElementById('winConditionDisplay').textContent = 
+    matchRules.winCondition === 'passengers' ? 'Passengers Served' :
+    matchRules.winCondition === 'money' ? 'Money Earned' :
+    'Stations Built';
+  document.getElementById('yourFinalScore').textContent = yourValue;
+  document.getElementById('oppFinalScore').textContent = oppValue;
+  
+  document.getElementById('winnerScreen').classList.remove('hidden');
+}
+
+// ==================== END VERSUS MODE FUNCTIONS ====================
 
     // ----- Leaderboard -----
     function addToLeaderboard(time, served, stationCount, segmentCount) {
