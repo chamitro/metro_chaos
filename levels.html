@@ -421,267 +421,145 @@
     let levelObjectives = [];
     let objectivesCompleted = {};
     let startingFactoryCount = 0; // Track initial factories to count only NEW builds
+    let startingStationCount = 0; // Track initial stations to count only NEW builds
     let currentLevelConfig = null; // Store current level configuration
     
-    // Level generation function - creates unique challenge for each of 100 levels
+    // Level generation function - creates unique challenge for each of 20 levels
     function getLevelConfig(level) {
       const config = {
         level: level,
         name: "",
         objectives: [],
-        startMoney: 0,
-        startStations: 2,
-        startFactories: 1,
+        startMoney: 1000,
+        startStations: 4,
+        startFactories: 2,
         timeLimit: null, // null = no time limit
-        allowNewStations: true,
-        allowNewTrains: true,
-        maxStations: 999,
+        maxConnectionsPerStation: 999, // Max rail connections per station
         spawnRate: 1.0, // multiplier
         difficulty: 1.0
       };
       
-      // TIER 1: TUTORIAL & BASICS (Levels 1-20)
-      if (level <= 20) {
-        config.name = `Beginner ${level}`;
-        config.startMoney = 500 + level * 50;
-        config.difficulty = 0.5 + level * 0.025;
-        
-        if (level === 1) {
-          config.name = "First Station";
-          config.objectives = [
-            { type: "serve", target: 10, current: 0, desc: "Serve 10 passengers" }
-          ];
-        } else if (level === 2) {
-          config.name = "Connect the City";
-          config.objectives = [
-            { type: "serve", target: 25, current: 0, desc: "Serve 25 passengers" },
-            { type: "connections", target: 2, current: 0, desc: "Create 2 connections" }
-          ];
-        } else if (level === 3) {
-          config.name = "Rush Hour Test";
-          config.objectives = [
-            { type: "survive_rushes", target: 1, current: 0, desc: "Survive 1 rush hour" },
-            { type: "serve", target: 30, current: 0, desc: "Serve 30 passengers" }
-          ];
-        } else if (level === 4) {
-          config.name = "Factory Basics";
-          config.startFactories = 0;
-          config.objectives = [
-            { type: "build_factories", target: 1, current: 0, desc: "Build 1 factory" },
-            { type: "serve", target: 40, current: 0, desc: "Serve 40 passengers" }
-          ];
-        } else if (level === 5) {
-          config.name = "Network Growth";
-          config.objectives = [
-            { type: "stations", target: 5, current: 0, desc: "Have 5 stations" },
-            { type: "serve", target: 50, current: 0, desc: "Serve 50 passengers" }
-          ];
-        } else if (level <= 10) {
-          config.objectives = [
-            { type: "serve", target: 30 + level * 10, current: 0, desc: `Serve ${30 + level * 10} passengers` },
-            { type: "stations", target: 3 + Math.floor(level / 2), current: 0, desc: `Have ${3 + Math.floor(level / 2)} stations` }
-          ];
-        } else if (level <= 15) {
-          config.objectives = [
-            { type: "serve", target: 80 + level * 5, current: 0, desc: `Serve ${80 + level * 5} passengers` },
-            { type: "efficiency", target: 60, current: 0, desc: "Maintain 60%+ efficiency" },
-            { type: "survive_rushes", target: 2, current: 0, desc: "Survive 2 rush hours" }
-          ];
-        } else {
-          config.objectives = [
-            { type: "serve", target: 100 + level * 8, current: 0, desc: `Serve ${100 + level * 8} passengers` },
-            { type: "combo", target: 2.5, current: 0, desc: "Reach 2.5x combo" },
-            { type: "trains", target: 5, current: 0, desc: "Have 5 trains" }
-          ];
-        }
-      }
-      
-      // TIER 2: INTERMEDIATE (Levels 21-40)
-      else if (level <= 40) {
-        config.name = `Intermediate ${level}`;
-        config.startMoney = 800 + (level - 20) * 30;
-        config.difficulty = 1.0 + (level - 20) * 0.05;
-        
-        if (level === 21) {
-          config.name = "Economic Pressure";
-          config.startMoney = 300;
-          config.objectives = [
-            { type: "money", target: 2000, current: 0, desc: "Earn $2000" },
-            { type: "serve", target: 150, current: 0, desc: "Serve 150 passengers" }
-          ];
-        } else if (level === 25) {
-          config.name = "Mega Hub Challenge";
-          config.objectives = [
-            { type: "merge_stations", target: 1, current: 0, desc: "Create 1 mega station" },
-            { type: "serve", target: 200, current: 0, desc: "Serve 200 passengers" }
-          ];
-        } else if (level === 30) {
-          config.name = "Factory Network";
-          config.objectives = [
-            { type: "build_factories", target: 3, current: 0, desc: "Build 3 factories" },
-            { type: "trains", target: 10, current: 0, desc: "Have 10 trains" },
-            { type: "serve", target: 250, current: 0, desc: "Serve 250 passengers" }
-          ];
-        } else if (level === 35) {
-          config.name = "Rush Hour Marathon";
-          config.objectives = [
-            { type: "survive_rushes", target: 5, current: 0, desc: "Survive 5 rush hours" },
-            { type: "efficiency", target: 70, current: 0, desc: "Keep 70%+ efficiency" }
-          ];
-        } else if (level <= 40) {
-          config.objectives = [
-            { type: "serve", target: 150 + level * 10, current: 0, desc: `Serve ${150 + level * 10} passengers` },
-            { type: "combo", target: 3.0 + (level - 30) * 0.1, current: 0, desc: `Reach ${(3.0 + (level - 30) * 0.1).toFixed(1)}x combo` },
-            { type: "survive_rushes", target: 3 + Math.floor((level - 20) / 5), current: 0, desc: `Survive ${3 + Math.floor((level - 20) / 5)} rush hours` }
-          ];
-        }
-      }
-      
-      // TIER 3: ADVANCED (Levels 41-60)
-      else if (level <= 60) {
-        config.name = `Advanced ${level}`;
-        config.startMoney = 1000 + (level - 40) * 20;
-        config.difficulty = 2.0 + (level - 40) * 0.08;
-        
-        if (level === 41) {
-          config.name = "Time Trial";
-          config.timeLimit = 180; // 3 minutes
-          config.objectives = [
-            { type: "serve", target: 200, current: 0, desc: "Serve 200 passengers in 3 minutes" }
-          ];
-        } else if (level === 45) {
-          config.name = "No Station Failures";
-          config.objectives = [
-            { type: "serve", target: 300, current: 0, desc: "Serve 300 passengers" },
-            { type: "zero_closures", target: 1, current: 0, desc: "No station can close" }
-          ];
-        } else if (level === 50) {
-          config.name = "The Perfect Network";
-          config.objectives = [
-            { type: "efficiency", target: 85, current: 0, desc: "Maintain 85%+ efficiency" },
-            { type: "combo", target: 4.5, current: 0, desc: "Reach 4.5x combo" },
-            { type: "serve", target: 400, current: 0, desc: "Serve 400 passengers" },
-            { type: "stations", target: 15, current: 0, desc: "Have 15 stations" }
-          ];
-        } else if (level === 55) {
-          config.name = "Budget Crisis";
-          config.startMoney = 200;
-          config.objectives = [
-            { type: "money", target: 5000, current: 0, desc: "Earn $5000" },
-            { type: "serve", target: 350, current: 0, desc: "Serve 350 passengers" }
-          ];
-        } else {
-          config.objectives = [
-            { type: "serve", target: 300 + (level - 40) * 15, current: 0, desc: `Serve ${300 + (level - 40) * 15} passengers` },
-            { type: "efficiency", target: 75 + Math.floor((level - 40) / 4), current: 0, desc: `Keep ${75 + Math.floor((level - 40) / 4)}%+ efficiency` },
-            { type: "combo", target: 3.5 + (level - 45) * 0.05, current: 0, desc: `Reach ${(3.5 + (level - 45) * 0.05).toFixed(1)}x combo` }
-          ];
-        }
-      }
-      
-      // TIER 4: EXPERT (Levels 61-80)
-      else if (level <= 80) {
-        config.name = `Expert ${level}`;
-        config.startMoney = 1500;
-        config.difficulty = 3.5 + (level - 60) * 0.1;
-        
-        if (level === 61) {
-          config.name = "Speed Demon";
-          config.timeLimit = 120; // 2 minutes
-          config.objectives = [
-            { type: "serve", target: 250, current: 0, desc: "Serve 250 in 2 minutes" },
-            { type: "combo", target: 4.0, current: 0, desc: "Reach 4.0x combo" }
-          ];
-        } else if (level === 65) {
-          config.name = "Mega Network";
-          config.objectives = [
-            { type: "merge_stations", target: 3, current: 0, desc: "Create 3 mega stations" },
-            { type: "serve", target: 500, current: 0, desc: "Serve 500 passengers" },
-            { type: "stations", target: 20, current: 0, desc: "Have 20 stations" }
-          ];
-        } else if (level === 70) {
-          config.name = "Factory Empire";
-          config.objectives = [
-            { type: "build_factories", target: 8, current: 0, desc: "Build 8 factories" },
-            { type: "trains", target: 25, current: 0, desc: "Have 25 trains" },
-            { type: "serve", target: 600, current: 0, desc: "Serve 600 passengers" }
-          ];
-        } else if (level === 75) {
-          config.name = "Rush Hour Hell";
-          config.objectives = [
-            { type: "survive_rushes", target: 10, current: 0, desc: "Survive 10 rush hours" },
-            { type: "efficiency", target: 80, current: 0, desc: "Keep 80%+ efficiency" },
-            { type: "zero_closures", target: 1, current: 0, desc: "No station can close" }
-          ];
-        } else {
-          config.objectives = [
-            { type: "serve", target: 500 + (level - 60) * 20, current: 0, desc: `Serve ${500 + (level - 60) * 20} passengers` },
-            { type: "combo", target: 4.0 + (level - 65) * 0.05, current: 0, desc: `Reach ${(4.0 + (level - 65) * 0.05).toFixed(1)}x combo` },
-            { type: "survive_rushes", target: 8 + Math.floor((level - 60) / 5), current: 0, desc: `Survive ${8 + Math.floor((level - 60) / 5)} rush hours` },
-            { type: "efficiency", target: 80, current: 0, desc: "Keep 80%+ efficiency" }
-          ];
-        }
-      }
-      
-      // TIER 5: MASTER (Levels 81-100)
-      else {
-        config.name = `MASTER ${level}`;
-        config.startMoney = 2000;
-        config.difficulty = 5.0 + (level - 80) * 0.15;
-        
-        if (level === 81) {
-          config.name = "The Gauntlet Begins";
-          config.objectives = [
-            { type: "serve", target: 800, current: 0, desc: "Serve 800 passengers" },
-            { type: "efficiency", target: 85, current: 0, desc: "Keep 85%+ efficiency" },
-            { type: "combo", target: 4.8, current: 0, desc: "Reach 4.8x combo" },
-            { type: "zero_closures", target: 1, current: 0, desc: "No station can close" }
-          ];
-        } else if (level === 85) {
-          config.name = "Speed Master";
-          config.timeLimit = 150;
-          config.objectives = [
-            { type: "serve", target: 500, current: 0, desc: "Serve 500 in 2.5 minutes" },
-            { type: "stations", target: 15, current: 0, desc: "Have 15 stations" },
-            { type: "combo", target: 5.0, current: 0, desc: "Reach MAX combo (5.0x)" }
-          ];
-        } else if (level === 90) {
-          config.name = "The Perfect City";
-          config.objectives = [
-            { type: "serve", target: 1000, current: 0, desc: "Serve 1000 passengers" },
-            { type: "efficiency", target: 90, current: 0, desc: "Keep 90%+ efficiency" },
-            { type: "combo", target: 5.0, current: 0, desc: "Reach 5.0x combo" },
-            { type: "stations", target: 25, current: 0, desc: "Have 25 stations" },
-            { type: "zero_closures", target: 1, current: 0, desc: "No station can close" }
-          ];
-        } else if (level === 95) {
-          config.name = "Final Trial";
-          config.timeLimit = 240;
-          config.objectives = [
-            { type: "serve", target: 800, current: 0, desc: "Serve 800 in 4 minutes" },
-            { type: "merge_stations", target: 5, current: 0, desc: "Create 5 mega stations" },
-            { type: "build_factories", target: 10, current: 0, desc: "Build 10 factories" },
-            { type: "efficiency", target: 90, current: 0, desc: "Keep 90%+ efficiency" }
-          ];
-        } else if (level === 100) {
-          config.name = "🏆 THE ULTIMATE CHALLENGE 🏆";
-          config.timeLimit = 300;
-          config.objectives = [
-            { type: "serve", target: 1500, current: 0, desc: "Serve 1500 passengers" },
-            { type: "efficiency", target: 95, current: 0, desc: "Keep 95%+ efficiency" },
-            { type: "combo", target: 5.0, current: 0, desc: "Reach MAX combo" },
-            { type: "stations", target: 30, current: 0, desc: "Have 30 stations" },
-            { type: "survive_rushes", target: 15, current: 0, desc: "Survive 15 rush hours" },
-            { type: "zero_closures", target: 1, current: 0, desc: "ZERO station closures" }
-          ];
-        } else {
-          config.objectives = [
-            { type: "serve", target: 700 + (level - 80) * 30, current: 0, desc: `Serve ${700 + (level - 80) * 30} passengers` },
-            { type: "combo", target: 4.5 + (level - 85) * 0.03, current: 0, desc: `Reach ${(4.5 + (level - 85) * 0.03).toFixed(1)}x combo` },
-            { type: "efficiency", target: 85 + Math.floor((level - 80) / 4), current: 0, desc: `Keep ${85 + Math.floor((level - 80) / 4)}%+ efficiency` },
-            { type: "survive_rushes", target: 10 + Math.floor((level - 80) / 3), current: 0, desc: `Survive ${10 + Math.floor((level - 80) / 3)} rush hours` }
-          ];
-        }
+      // 20 LEVELS - Complete Campaign
+      if (level === 1) {
+        config.name = "Getting Started";
+        config.objectives = [
+          { type: "connections", target: 4, current: 0, desc: "Connect 4 stations" },
+          { type: "serve", target: 10, current: 0, desc: "Serve 10 passengers" }
+        ];
+      } else if (level === 2) {
+        config.name = "Network Expansion";
+        config.objectives = [
+          { type: "connections", target: 5, current: 0, desc: "Connect 5 stations" },
+          { type: "serve", target: 20, current: 0, desc: "Serve 20 passengers" }
+        ];
+      } else if (level === 3) {
+        config.name = "Rush Hour Test";
+        config.objectives = [
+          { type: "survive_rushes", target: 1, current: 0, desc: "Survive 1 rush hour" }
+        ];
+      } else if (level === 4) {
+        config.name = "Factory Basics";
+        config.objectives = [
+          { type: "build_factories", target: 1, current: 0, desc: "Build 1 factory" }
+        ];
+      } else if (level === 5) {
+        config.name = "Growth Phase";
+        config.objectives = [
+          { type: "build_stations", target: 3, current: 0, desc: "Build 3 new stations" },
+          { type: "serve", target: 50, current: 0, desc: "Serve 50 passengers" }
+        ];
+      } else if (level === 6) {
+        config.name = "Industrial Expansion";
+        config.objectives = [
+          { type: "build_factories", target: 3, current: 0, desc: "Build 3 factories" }
+        ];
+      } else if (level === 7) {
+        config.name = "Mega Hub";
+        config.objectives = [
+          { type: "merge_stations", target: 1, current: 0, desc: "Create 1 merged station" }
+        ];
+      } else if (level === 8) {
+        config.name = "Endurance Test";
+        config.timeLimit = 180; // 3 minutes
+        config.objectives = [
+          { type: "survive_time", target: 180, current: 0, desc: "Survive for 3 minutes" }
+        ];
+      } else if (level === 9) {
+        config.name = "Economic Success";
+        config.startMoney = 500; // Start with less money
+        config.objectives = [
+          { type: "money", target: 2000, current: 0, desc: "Earn $2000" }
+        ];
+      } else if (level === 10) {
+        config.name = "Passenger Milestone";
+        config.objectives = [
+          { type: "serve", target: 300, current: 0, desc: "Serve 300 passengers" }
+        ];
+      } else if (level === 11) {
+        config.name = "Limited Connections I";
+        config.maxConnectionsPerStation = 3; // Max 3 rails per station!
+        config.objectives = [
+          { type: "serve", target: 150, current: 0, desc: "Serve 150 passengers" }
+        ];
+      } else if (level === 12) {
+        config.name = "Limited Connections II";
+        config.maxConnectionsPerStation = 3;
+        config.objectives = [
+          { type: "build_factories", target: 4, current: 0, desc: "Build 4 factories" }
+        ];
+      } else if (level === 13) {
+        config.name = "Limited Connections III";
+        config.maxConnectionsPerStation = 3;
+        config.startMoney = 500;
+        config.objectives = [
+          { type: "money", target: 5000, current: 0, desc: "Earn $5000" }
+        ];
+      } else if (level === 14) {
+        config.name = "Limited Connections IV";
+        config.maxConnectionsPerStation = 3;
+        config.objectives = [
+          { type: "merge_stations", target: 2, current: 0, desc: "Create 2 merged stations" }
+        ];
+      } else if (level === 15) {
+        config.name = "Limited Connections V";
+        config.maxConnectionsPerStation = 3;
+        config.objectives = [
+          { type: "survive_rushes", target: 5, current: 0, desc: "Survive 5 rush hours" }
+        ];
+      } else if (level === 16) {
+        config.name = "Limited Connections VI";
+        config.maxConnectionsPerStation = 3;
+        config.objectives = [
+          { type: "merge_stations", target: 3, current: 0, desc: "Create 3 merged stations" }
+        ];
+      } else if (level === 17) {
+        config.name = "Limited Connections VII";
+        config.maxConnectionsPerStation = 3;
+        config.timeLimit = 600; // 10 minutes
+        config.objectives = [
+          { type: "survive_time", target: 600, current: 0, desc: "Survive for 10 minutes" }
+        ];
+      } else if (level === 18) {
+        config.name = "Limited Connections VIII";
+        config.maxConnectionsPerStation = 3;
+        config.timeLimit = 900; // 15 minutes
+        config.objectives = [
+          { type: "survive_time", target: 900, current: 0, desc: "Survive for 15 minutes" },
+          { type: "zero_closures", target: 1, current: 0, desc: "No closed stations at end" }
+        ];
+      } else if (level === 19) {
+        config.name = "Limited Connections IX";
+        config.maxConnectionsPerStation = 3;
+        config.objectives = [
+          { type: "merge_stations", target: 4, current: 0, desc: "Create 4 merged stations" }
+        ];
+      } else if (level === 20) {
+        config.name = "🏆 THE FINAL CHALLENGE 🏆";
+        config.maxConnectionsPerStation = 3;
+        config.objectives = [
+          { type: "serve", target: 5000, current: 0, desc: "Serve 5000 passengers" },
+          { type: "zero_closures", target: 1, current: 0, desc: "No closed stations at end" }
+        ];
       }
       
       return config;
@@ -743,6 +621,16 @@
             obj.current = stations.filter(s => s.closed).length === 0 ? 1 : 0;
             completed = obj.current >= obj.target;
             break;
+          case 'build_stations':
+            // Count only NEW stations built during this level
+            obj.current = Math.max(0, stations.length - startingStationCount);
+            completed = obj.current >= obj.target;
+            break;
+          case 'survive_time':
+            // Survive for X seconds
+            obj.current = Math.floor(elapsed);
+            completed = obj.current >= obj.target;
+            break;
         }
         
         objectivesCompleted[obj.type] = completed;
@@ -774,18 +662,18 @@
       const nextConfig = getLevelConfig(currentLevel);
       
       overlayTitle.textContent = `🎉 Level ${currentLevel - 1} Complete! 🎉`;
-      overlayMessage.textContent = currentLevel <= 100 
+      overlayMessage.textContent = currentLevel <= 20 
         ? `Excellent work! You've unlocked Level ${currentLevel}: "${nextConfig.name}"`
-        : "🏆 CONGRATULATIONS! You've beaten all 100 levels! You are a METRO MASTER! 🏆";
+        : "🏆 CONGRATULATIONS! You've beaten all 20 levels! You are a METRO MASTER! 🏆";
       
       let metricsHTML = `
         <div class="metric"><span class="metric-label">Time</span><span class="metric-value">${elapsed.toFixed(1)}s</span></div>
         <div class="metric"><span class="metric-label">Passengers Served</span><span class="metric-value">${servedPassengers}</span></div>
         <div class="metric"><span class="metric-label">Peak Combo</span><span class="metric-value">×${peakCombo.toFixed(1)}</span></div>
-        <div class="metric"><span class="metric-label">Current Level</span><span class="metric-value">${currentLevel} / 100</span></div>
+        <div class="metric"><span class="metric-label">Current Level</span><span class="metric-value">${currentLevel} / 20</span></div>
       `;
       
-      if (currentLevel <= 100) {
+      if (currentLevel <= 20) {
         metricsHTML += `<div style="margin-top: 16px; padding: 12px; background: rgba(79, 209, 197, 0.1); border-radius: 8px; text-align: left;">
           <div style="font-weight: 600; margin-bottom: 8px;">🎯 Next: Level ${currentLevel} - ${nextConfig.name}</div>
           ${nextConfig.objectives.map(obj => `<div style="font-size: 12px; opacity: 0.9;">• ${obj.desc}</div>`).join('')}
@@ -793,7 +681,7 @@
       }
       
       overlayMetrics.innerHTML = metricsHTML;
-      overlayButton.textContent = currentLevel <= 100 ? `Start Level ${currentLevel}` : "Play Again (Level 1)";
+      overlayButton.textContent = currentLevel <= 20 ? `Start Level ${currentLevel}` : "Play Again (Level 1)";
       overlay.classList.remove("hidden");
     }
     
@@ -2068,6 +1956,17 @@ function spawnStationsOverTime(dt) {
     }
 
     // ----- Graph & edges -----
+    function showTooltip(message, x, y) {
+      const tooltip = document.getElementById("actionTooltip");
+      if (tooltip) {
+        tooltip.textContent = message;
+        tooltip.style.left = x + "px";
+        tooltip.style.top = (y + 20) + "px";
+        tooltip.classList.add("show");
+        setTimeout(() => tooltip.classList.remove("show"), 2000);
+      }
+    }
+    
     function edgeKey2(a, b) {
       return a < b ? `${a}-${b}` : `${b}-${a}`;
     }
@@ -2075,21 +1974,40 @@ function spawnStationsOverTime(dt) {
     function addEdge(a, b) {
       if (!adjacency.has(a)) adjacency.set(a, []);
       if (!adjacency.has(b)) adjacency.set(b, []);
+      
+      // Check max connections per station constraint
+      const config = currentLevelConfig || getLevelConfig(currentLevel);
+      const maxConnections = config.maxConnectionsPerStation || 999;
+      
+      const currentConnectionsA = adjacency.get(a).length;
+      const currentConnectionsB = adjacency.get(b).length;
+      
+      // Block connection if either station is at max
+      if (currentConnectionsA >= maxConnections) {
+        showTooltip(`Station #${a} has max ${maxConnections} connections!`, event.clientX, event.clientY);
+        return false; // Connection blocked
+      }
+      if (currentConnectionsB >= maxConnections) {
+        showTooltip(`Station #${b} has max ${maxConnections} connections!`, event.clientX, event.clientY);
+        return false; // Connection blocked
+      }
+      
       if (!adjacency.get(a).includes(b)) adjacency.get(a).push(b);
       if (!adjacency.get(b).includes(a)) adjacency.get(b).push(a);
 
       const key = edgeKey2(a, b);
-      if (edgeMeta.has(key)) return;
+      if (edgeMeta.has(key)) return true;
 
       const stA = stations.find(s => s.id === a);
       const stB = stations.find(s => s.id === b);
-      if (!stA || !stB) return;
+      if (!stA || !stB) return false;
 
       const dx = stB.x - stA.x;
       const dy = stB.y - stA.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       edgeMeta.set(key, { distance: dist, createdAt: elapsed });
+      return true;
     }
     
     // ----- Factory capacity helpers -----
@@ -3734,7 +3652,7 @@ const barHeight = 7
       // Update level display
       const levelTextEl = document.getElementById("levelText");
       if (levelTextEl) {
-        levelTextEl.textContent = currentLevel + " / 100";
+        levelTextEl.textContent = currentLevel + " / 20";
       }
       
       timeText.textContent = elapsed.toFixed(1);
@@ -4002,6 +3920,7 @@ const barHeight = 7
       startLevel(currentLevel); // Start with campaign level config
       resetRun();
       startingFactoryCount = trainFactories.length; // Capture initial factories AFTER spawn
+      startingStationCount = stations.length; // Capture initial stations AFTER spawn
       running = true;
       lastTime = performance.now();
     });
@@ -4012,14 +3931,15 @@ const barHeight = 7
     spawnInitialCity(currentLevelConfig);
     updateHUD();
     
-    overlayTitle.textContent = `🎮 Metro Manager - 100 Level Campaign`;
-    overlayMessage.textContent = `Welcome to the ultimate metro challenge! Complete 100 increasingly difficult levels.\n\n⚠️ WARNING: If you fail ANY level, you restart from Level 1!\n\nYour Current Progress: Level ${currentLevel} / 100\nHighest Level Reached: ${highestLevel}`;
+    overlayTitle.textContent = `🎮 Metro Chaos - 20 Level Campaign`;
+    overlayMessage.textContent = `Welcome to Metro Chaos! Complete 20 increasingly difficult levels.\n\n⚠️ WARNING: If you fail ANY level, you restart from Level 1!\n\nYour Current Progress: Level ${currentLevel} / 20\nHighest Level Reached: ${highestLevel}`;
     
     overlayMetrics.innerHTML = `
       <div style="margin: 16px 0; padding: 12px; background: rgba(79, 209, 197, 0.1); border-radius: 8px; text-align: left;">
         <div style="font-weight: 600; margin-bottom: 8px; color: #4fd1c5;">🎯 Level ${currentLevel}: ${config.name}</div>
         ${config.objectives.map(obj => `<div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">• ${obj.desc}</div>`).join('')}
         ${config.timeLimit ? `<div style="font-size: 12px; opacity: 0.9; margin-top: 8px; color: #fc8181;">⏱ Time Limit: ${config.timeLimit}s</div>` : ''}
+        ${config.maxConnectionsPerStation < 999 ? `<div style="font-size: 12px; opacity: 0.9; margin-top: 8px; color: #ffd166;">⚠️ Max ${config.maxConnectionsPerStation} rails per station!</div>` : ''}
       </div>
       <p style="margin: 12px 0; font-size: 13px; opacity: 0.8;">
         <strong>🎮 How to Play:</strong><br>
