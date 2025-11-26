@@ -404,15 +404,17 @@
 
 <!-- Winner Screen -->
 <div id="winnerScreen" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-  <div style="text-align: center; padding: 40px;">
+  <div style="text-align: center; padding: 40px; background: rgba(10, 14, 35, 0.9); border-radius: 24px; border: 2px solid rgba(79, 209, 197, 0.3);">
     <h1 id="winnerText" style="font-size: 48px; margin-bottom: 24px;">🏆 YOU WIN! 🏆</h1>
-    <div style="font-size: 24px; margin-bottom: 16px;">
+    <div style="font-size: 24px; margin-bottom: 16px; opacity: 0.9;">
       <span id="winConditionDisplay">Passengers Served</span>
     </div>
-    <div style="font-size: 36px; font-weight: 700; margin-bottom: 32px;">
-      <span id="yourFinalScore">0</span> vs <span id="oppFinalScore">0</span>
+    <div style="font-size: 36px; font-weight: 700; margin-bottom: 32px; color: #4fd1c5;">
+      <span id="yourFinalScore">0</span> <span style="opacity: 0.5;">vs</span> <span id="oppFinalScore">0</span>
     </div>
-    <button class="btn btn-primary" id="playAgainBtn" style="font-size: 18px; padding: 12px 32px;">Play Again</button>
+    <div style="font-size: 16px; opacity: 0.7; margin-top: 24px;">
+      🏠 Returning to main menu in <span id="redirectCountdown" style="color: #4fd1c5; font-weight: 700;">5</span> seconds...
+    </div>
   </div>
 </div>
   <div id="hud">
@@ -787,18 +789,6 @@ mpClient.on('ERROR', function(data) {
 });
 
 // Play Again
-document.getElementById('playAgainBtn').addEventListener('click', function() {
-  document.getElementById('winnerScreen').style.display = 'none';
-  document.getElementById('matchTimerDisplay').style.display = 'none';
-  document.getElementById('opponentPanel').style.display = 'none';
-  document.getElementById('lobbyScreen').classList.remove('hidden');
-  document.getElementById('modeSelection').classList.remove('hidden');
-  document.getElementById('matchFoundScreen').classList.add('hidden');
-  
-  mpClient.leaveRoom();
-  versusMode = false;
-  resetGame();
-});
 
 window.addEventListener('load', () => {
   mpClient.connect().then(() => {
@@ -2997,6 +2987,33 @@ function endMatch(forceWin) {
   document.getElementById('oppFinalScore').textContent = oppValue;
   
   document.getElementById('winnerScreen').style.display = 'flex';
+  document.getElementById('winnerScreen').classList.remove('hidden');
+  
+  // Countdown timer
+  let countdown = 5;
+  const countdownElement = document.getElementById('redirectCountdown');
+  
+  const countdownInterval = setInterval(() => {
+    countdown--;
+    countdownElement.textContent = countdown;
+    
+    if (countdown <= 0) {
+      clearInterval(countdownInterval);
+    }
+  }, 1000);
+  
+  // Auto-redirect to main menu after 5 seconds
+  console.log('🏆 Match ended! Redirecting to main menu in 5 seconds...');
+  setTimeout(() => {
+    // Disconnect from multiplayer
+    if (mpClient) {
+      mpClient.leaveRoom();
+    }
+    
+    // Redirect to main menu
+    console.log('🏠 Returning to main menu...');
+    window.location.href = 'index.html';
+  }, 5000);
   }
 
 // ==================== OPPONENT NETWORK GRAPH ====================
