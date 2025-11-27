@@ -514,13 +514,8 @@ function getTouchDistance(touches) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-canvas.addEventListener('touchstart', function(e) {
-  if (e.touches.length === 2) {
-    isPinching = true;
-    lastTouchDistance = getTouchDistance(e.touches);
-    e.preventDefault();
-  }
-}, { passive: false });
+// ===== PINCH TO ZOOM - HANDLED IN handlePointerDown BELOW =====
+// Removed standalone touchstart listener to avoid conflicts
 
 canvas.addEventListener('touchmove', function(e) {
   if (isPinching && e.touches.length === 2) {
@@ -1810,14 +1805,21 @@ function factoryHasFreeCapacity(factory) {
     }
 
     function handlePointerDown(e) {
+      // Get position BEFORE preventDefault (which might clear touches in some browsers)
+      const { x: mx, y: my } = getPointerPosition(e);
       e.preventDefault();
       
-      // Don't handle drawing if user is pinching to zoom
-      if (isPinching || (e.touches && e.touches.length > 1)) {
-        return;
+      // Check if this is a pinch gesture (2 fingers)
+      if (e.touches && e.touches.length === 2) {
+        isPinching = true;
+        lastTouchDistance = getTouchDistance(e.touches);
+        return; // Don't handle as drawing
       }
       
-      const { x: mx, y: my } = getPointerPosition(e);
+      // Don't handle drawing if user is already pinching
+      if (isPinching) {
+        return;
+      }
 
       // REOPEN MODE: Click closed station to reopen
 
@@ -1884,14 +1886,14 @@ if (reopenMode) {
     }
 
     function handlePointerMove(e) {
+      // Get position BEFORE preventDefault
+      const { x: mx, y: my } = getPointerPosition(e);
       e.preventDefault();
       
       // Don't handle drawing if user is pinching to zoom
       if (isPinching || (e.touches && e.touches.length > 1)) {
         return;
       }
-      
-      const { x: mx, y: my } = getPointerPosition(e);
 
       // Update selection box in merge mode
       if (isSelectingBox) {
@@ -1914,8 +1916,9 @@ if (reopenMode) {
     }
 
     function handlePointerUp(e) {
-      e.preventDefault();
+      // Get position BEFORE preventDefault
       const { x: mx, y: my } = getPointerPosition(e);
+      e.preventDefault();
 
       // Handle selection box completion in reopen mode
       if (isSelectingBoxReopen) {
