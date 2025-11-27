@@ -435,6 +435,8 @@
     <button id="factoryButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #d97943, #c95d2b); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🏭 Build Factory ($200)</button>
     <button id="reopenButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #48bb78, #38a169); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;">💚 Reopen Station ($200)</button>
     <button id="mergeButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🔀 Merge Stations ($500)</button>
+    <button id="placeStationsButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #4fd1c5, #38b2ac); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">📍 Place 3 Stations ($200)</button>
+    <button id="overloadButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #fc8181, #f56565); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">💥 Overload Enemy ($100)</button>
   </div>
 
   <div id="hint">
@@ -776,6 +778,38 @@ mpClient.on('OPPONENT_UPDATE', function(data) {
   updateOpponentGraph(data);
 });
 
+// Handle Overload Attacks
+mpClient.on('OVERLOAD_ATTACK', function(data) {
+  // Find 3 random open stations
+  const openStations = stations.filter(st => !st.closed);
+  
+  if (openStations.length === 0) {
+    return; // No stations to overload
+  }
+  
+  // Shuffle and pick up to 3
+  const shuffled = openStations.sort(() => Math.random() - 0.5);
+  const targetsCount = Math.min(3, shuffled.length);
+  
+  for (let i = 0; i < targetsCount; i++) {
+    const station = shuffled[i];
+    
+    // Add 5 passengers to the queue
+    for (let j = 0; j < 5; j++) {
+      const dest = stations[Math.floor(Math.random() * stations.length)];
+      if (dest && dest !== station && !dest.closed) {
+        station.queue.push({ dest: dest.id, color: dest.color });
+      }
+    }
+    
+    // Visual feedback
+    spawnBurstParticles(station.x, station.y, 'rgba(255, 50, 50, 1)', 20, 6);
+  }
+  
+  screenFlash = 0.5;
+  showActionTooltip("💥 OVERLOADED BY OPPONENT!", width/2, 80);
+});
+
 // Handle Opponent Left
 mpClient.on('OPPONENT_LEFT', function(data) {
   alert('Opponent disconnected. You win by default!');
@@ -1039,6 +1073,8 @@ window.addEventListener('load', () => {
     const mergeButton = document.getElementById("mergeButton");
     const factoryButton = document.getElementById("factoryButton");
     const reopenButton = document.getElementById("reopenButton");
+    const placeStationsButton = document.getElementById("placeStationsButton");
+    const overloadButton = document.getElementById("overloadButton");
 
     // ----- Game state -----
     let running = false;
@@ -1055,6 +1091,11 @@ let REOPEN_BUNDLE_COST = 150;  // will increase by +100 each use
 
 let TRAIN_FACTORY_COST = 200;     // will go up by +100 each build
 let MERGE_COST = 500;             // will go up by +100 each merge
+
+// NEW: Special abilities
+let PLACE_STATIONS_COST = 200;    // one-time use
+let placeStationsUsed = false;
+let OVERLOAD_ENEMY_COST = 100;    // will go up by +100 each use
 
     const MAX_MERGE_STATIONS = 10;
 
@@ -1085,6 +1126,10 @@ let MERGE_COST = 500;             // will go up by +100 each merge
     
     // ----- Reopen Mode -----
     let reopenMode = false;
+
+    // ----- Place Stations Mode -----
+    let placeStationsMode = false;
+    let stationsToPlace = 0;
 
     let stations = [];
     let trains = [];
@@ -2356,6 +2401,12 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
       
       // Removed: Old single-click reopen (now uses drag selection box in reopen mode)
       
+      // PLACE STATIONS MODE: Click to place new station
+      if (placeStationsMode && stationsToPlace > 0) {
+        attemptPlaceStation(mx, my);
+        return;
+      }
+      
       // FACTORY BUILD MODE: Click empty space to build
       if (factoryBuildMode) {
         attemptBuildFactory(mx, my);
@@ -2630,6 +2681,69 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
     });
 
     // NEW: Factory building
+    // NEW: Place station function
+    function attemptPlaceStation(x, y) {
+      const MIN_DISTANCE = 120; // Same as auto-spawn distance
+      
+      // Check if too close to existing stations
+      for (const st of stations) {
+        const dx = x - st.x;
+        const dy = y - st.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MIN_DISTANCE) {
+          showActionTooltip("Too close to existing station!", x, y);
+          return;
+        }
+      }
+      
+      // Check if too close to factories
+      for (const factory of trainFactories) {
+        const dx = x - factory.x;
+        const dy = y - factory.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 80) {
+          showActionTooltip("Too close to factory!", x, y);
+          return;
+        }
+      }
+      
+      // Check bounds
+      const margin = 60;
+      if (x < margin || x > width - margin || y < margin || y > height - margin) {
+        showActionTooltip("Too close to edge!", x, y);
+        return;
+      }
+      
+      // Place the station
+      const role = STATION_ROLES[Math.floor(Math.random() * STATION_ROLES.length)];
+      const newStation = createStation(x, y, role);
+      newStation.spawnAnimation = 1.0;
+      stations.push(newStation);
+      
+      newStationPulse = { x, y, radius: 0, alpha: 1 };
+      spawnBurstParticles(x, y, roleColor(role), 15, 5);
+      screenFlash = 0.3;
+      
+      stationsToPlace--;
+      
+      if (stationsToPlace > 0) {
+        placeStationsButton.textContent = "❌ Cancel (Remaining: " + stationsToPlace + ")";
+        showActionTooltip("Station placed! " + stationsToPlace + " remaining", x, y - 40);
+      } else {
+        // All stations placed
+        placeStationsMode = false;
+        updatePlaceStationsButton();
+        showActionTooltip("All stations placed!", x, y - 40);
+      }
+      
+      // Record action for opponent
+      if (versusMode) {
+        recordAction('Placed station manually');
+      }
+      
+      updateCameraZoom();
+    }
+    
     function attemptBuildFactory(x, y) {
       // Check if too close to existing factories
       for (const factory of trainFactories) {
@@ -2728,10 +2842,12 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
         // Cancel other modes
         mergeMode = false;
         factoryBuildMode = false;
+        placeStationsMode = false;
         selectedStationsForMerge = [];
         selectedStationsForReopen = [];
         updateMergeButton();
         updateFactoryButton();
+        updatePlaceStationsButton();
         
         reopenButton.textContent = "❌ Cancel Reopen";
         reopenButton.style.background = "linear-gradient(135deg, #fc8181, #f56565)";
@@ -2740,6 +2856,86 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
         selectedStationsForReopen = [];
         updateReopenButton();
       }
+    });
+    
+    // ----- Place Stations Button -----
+    placeStationsButton.addEventListener("click", () => {
+      if (!running) return;
+      
+      if (placeStationsUsed) {
+        showActionTooltip("Already used! (one-time ability)", width/2, 80);
+        return;
+      }
+      
+      if (playerMoney < PLACE_STATIONS_COST) {
+        showActionTooltip("Not enough money! Need $" + PLACE_STATIONS_COST, width/2, 80);
+        return;
+      }
+      
+      placeStationsMode = !placeStationsMode;
+      
+      if (placeStationsMode) {
+        // Cancel other modes
+        mergeMode = false;
+        factoryBuildMode = false;
+        reopenMode = false;
+        selectedStationsForMerge = [];
+        updateMergeButton();
+        updateFactoryButton();
+        updateReopenButton();
+        
+        // Deduct money and mark as used
+        playerMoney -= PLACE_STATIONS_COST;
+        placeStationsUsed = true;
+        stationsToPlace = 3;
+        
+        placeStationsButton.textContent = "❌ Cancel (Remaining: 3)";
+        placeStationsButton.style.background = "linear-gradient(135deg, #fc8181, #f56565)";
+        showActionTooltip("Click 3 locations to place new stations", width/2, 80);
+        
+        // Record action for opponent
+        if (versusMode) {
+          recordAction('Used Place Stations ability');
+        }
+      } else {
+        // Refund if cancelled
+        playerMoney += PLACE_STATIONS_COST;
+        placeStationsUsed = false;
+        stationsToPlace = 0;
+        updatePlaceStationsButton();
+      }
+    });
+    
+    // ----- Overload Enemy Button -----
+    overloadButton.addEventListener("click", () => {
+      if (!running) return;
+      if (!versusMode) {
+        showActionTooltip("Only available in versus mode!", width/2, 80);
+        return;
+      }
+      
+      if (playerMoney < OVERLOAD_ENEMY_COST) {
+        showActionTooltip("Not enough money! Need $" + OVERLOAD_ENEMY_COST, width/2, 80);
+        return;
+      }
+      
+      // Deduct money
+      playerMoney -= OVERLOAD_ENEMY_COST;
+      
+      // Send attack to opponent via server
+      mpClient.send('OVERLOAD_ATTACK', {
+        timestamp: Date.now()
+      });
+      
+      showActionTooltip("💥 Overload attack sent!", width/2, 80);
+      screenFlash = 0.3;
+      
+      // Record action
+      recordAction('Sent overload attack');
+      
+      // Increase cost for next use
+      OVERLOAD_ENEMY_COST += 100;
+      updateOverloadButton();
     });
     
     
@@ -2764,6 +2960,25 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
         reopenButton.style.display = "none";
       }
     }
+    
+    function updatePlaceStationsButton() {
+      if (placeStationsUsed) {
+        placeStationsButton.textContent = "📍 Place Stations (USED)";
+        placeStationsButton.style.background = "linear-gradient(135deg, #718096, #4a5568)";
+        placeStationsButton.style.opacity = "0.5";
+        placeStationsButton.style.cursor = "not-allowed";
+      } else {
+        placeStationsButton.textContent = "📍 Place 3 Stations ($" + PLACE_STATIONS_COST + ")";
+        placeStationsButton.style.background = "linear-gradient(135deg, #4fd1c5, #38b2ac)";
+        placeStationsButton.style.opacity = "1";
+        placeStationsButton.style.cursor = "pointer";
+      }
+    }
+    
+    function updateOverloadButton() {
+      overloadButton.textContent = "💥 Overload Enemy ($" + OVERLOAD_ENEMY_COST + ")";
+    }
+
 
     // ----- Reset -----
     function resetRun() {
@@ -2799,6 +3014,13 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
       TRAIN_FACTORY_COST = 200;
   MERGE_COST = 500;
       
+      // Reset special abilities
+      PLACE_STATIONS_COST = 200;
+      placeStationsUsed = false;
+      placeStationsMode = false;
+      stationsToPlace = 0;
+      OVERLOAD_ENEMY_COST = 100;
+      
       // Reset merge mode
       mergeMode = false;
       selectedStationsForMerge = [];
@@ -2812,6 +3034,10 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
       // Reset reopen mode
       reopenMode = false;
       updateReopenButton();
+      
+      // Reset new buttons
+      updatePlaceStationsButton();
+      updateOverloadButton();
 
       spawnInitialCity();
     }
