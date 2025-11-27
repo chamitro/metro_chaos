@@ -2,14 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Metro Manager – Endless Run</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Metro Manager – Survival Mode</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
     html, body {
       width: 100%; height: 100%; overflow: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: radial-gradient(circle at top, #171c32 0, #050812 60%);
       color: #f4f4f6;
+      touch-action: none;
     }
     
     #hud {
@@ -132,9 +145,9 @@
     <div class="pill"><span class="label">Efficiency</span><span id="efficiencyText">50%</span></div>
 <div class="pill" style="background: rgba(255, 200, 0, 0.15);"><span class="label">Combo</span><span id="comboText">×1.0</span></div>
 <div class="pill" id="rushHourPill" style="display: none; background: rgba(255, 50, 50, 0.3);"><span class="label">🚨 RUSH HOUR</span><span id="rushHourText">45s</span></div>
-    <button id="factoryButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #d97943, #c95d2b); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🏭 Build Factory ($200)</button>
-    <button id="reopenButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #48bb78, #38a169); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;">💚 Reopen Station ($200)</button>
-    <button id="mergeButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🔀 Merge Stations ($500)</button>
+    <button id="factoryButton" style="padding: 10px 16px; min-height: 44px; border-radius: 999px; border: none; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #d97943, #c95d2b); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🏭 Build Factory ($200)</button>
+    <button id="reopenButton" style="padding: 10px 16px; min-height: 44px; border-radius: 999px; border: none; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #48bb78, #38a169); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;">💚 Reopen Station ($200)</button>
+    <button id="mergeButton" style="padding: 10px 16px; min-height: 44px; border-radius: 999px; border: none; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🔀 Merge Stations ($500)</button>
   </div>
 
   <div id="hint">
@@ -478,6 +491,56 @@ function updateCameraZoom() {
 
   targetViewScale = desiredScale;
 }
+
+// ===== MOBILE DETECTION AND ZOOM ADJUSTMENT =====
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                 ('ontouchstart' in window) || 
+                 (window.innerWidth < 768);
+
+// Adjust initial zoom for mobile
+if (isMobile) {
+  viewScale = 0.55;  // Start at 55% zoom on mobile to see more
+  targetViewScale = 0.55;
+}
+
+// ===== PINCH TO ZOOM SUPPORT =====
+let lastTouchDistance = 0;
+let isPinching = false;
+
+function getTouchDistance(touches) {
+  if (touches.length < 2) return 0;
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+canvas.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 2) {
+    isPinching = true;
+    lastTouchDistance = getTouchDistance(e.touches);
+    e.preventDefault();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', function(e) {
+  if (isPinching && e.touches.length === 2) {
+    const currentDistance = getTouchDistance(e.touches);
+    const delta = currentDistance - lastTouchDistance;
+    
+    // Adjust zoom based on pinch
+    const zoomChange = delta * 0.002; // Sensitivity factor
+    targetViewScale = Math.max(0.3, Math.min(1.5, targetViewScale + zoomChange));
+    
+    lastTouchDistance = currentDistance;
+    e.preventDefault();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', function(e) {
+  if (e.touches.length < 2) {
+    isPinching = false;
+  }
+}, { passive: false });
 
 
 
@@ -1658,8 +1721,42 @@ function spawnStationsOverTime(dt) {
     }
 
     function addEdge(a, b) {
-      if (!adjacency.has(a)) adjacency.set(a, []);
-      if (!adjacency.has(b)) adjacency.set(b, []);
+  // ==================== MAX CONNECTIONS CHECK ====================
+  if (versusMode && matchRules && matchRules.maxConnections !== 999) {
+    // Count existing connections
+    const connectionsA = adjacency.has(a) ? adjacency.get(a).length : 0;
+    const connectionsB = adjacency.has(b) ? adjacency.get(b).length : 0;
+    
+    // Block if either station is at limit
+    if (connectionsA >= matchRules.maxConnections) {
+      console.log(`⚠️ Station ${a} has max ${matchRules.maxConnections} connections!`);
+      
+      // Visual feedback (red sparkles)
+      const stA = stations.find(s => s.id === a);
+      if (stA) {
+        spawnSparkles(stA.x, stA.y, 'rgba(255, 100, 100, 1)', 8);
+      }
+      
+      return; // Don't create connection
+    }
+    
+    if (connectionsB >= matchRules.maxConnections) {
+      console.log(`⚠️ Station ${b} has max ${matchRules.maxConnections} connections!`);
+      
+      // Visual feedback (red sparkles)
+      const stB = stations.find(s => s.id === b);
+      if (stB) {
+        spawnSparkles(stB.x, stB.y, 'rgba(255, 100, 100, 1)', 8);
+      }
+      
+      return; // Don't create connection
+    }
+  }
+  // ==================== END CHECK ====================
+  
+  // Original code continues below (DON'T DELETE THIS!)
+  if (!adjacency.has(a)) adjacency.set(a, []);
+  if (!adjacency.has(b)) adjacency.set(b, []);
       if (!adjacency.get(a).includes(b)) adjacency.get(a).push(b);
       if (!adjacency.get(b).includes(a)) adjacency.get(b).push(a);
 
@@ -1693,12 +1790,34 @@ function factoryHasFreeCapacity(factory) {
     let dragStartFactory = null; // NEW: Track if dragging from factory
     let dragX = 0, dragY = 0;
 
-    canvas.addEventListener("mousedown", e => {
+    // ===== UNIVERSAL TOUCH/MOUSE HANDLER =====
+    function getPointerPosition(e) {
       const rect = canvas.getBoundingClientRect();
-      let sx = e.clientX - rect.left;
-let sy = e.clientY - rect.top;
-let { x: mx, y: my } = screenToWorld(sx, sy);
+      let clientX, clientY;
+      
+      if (e.type.startsWith('touch')) {
+        const touch = e.touches[0] || e.changedTouches[0];
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+      return screenToWorld(sx, sy);
+    }
 
+    function handlePointerDown(e) {
+      e.preventDefault();
+      
+      // Don't handle drawing if user is pinching to zoom
+      if (isPinching || (e.touches && e.touches.length > 1)) {
+        return;
+      }
+      
+      const { x: mx, y: my } = getPointerPosition(e);
 
       // REOPEN MODE: Click closed station to reopen
 
@@ -1762,14 +1881,17 @@ if (reopenMode) {
           return;
         }
       }
-    });
+    }
 
-    canvas.addEventListener("mousemove", e => {
-      const rect = canvas.getBoundingClientRect();
-      let sx = e.clientX - rect.left;
-let sy = e.clientY - rect.top;
-let { x: mx, y: my } = screenToWorld(sx, sy);
-
+    function handlePointerMove(e) {
+      e.preventDefault();
+      
+      // Don't handle drawing if user is pinching to zoom
+      if (isPinching || (e.touches && e.touches.length > 1)) {
+        return;
+      }
+      
+      const { x: mx, y: my } = getPointerPosition(e);
 
       // Update selection box in merge mode
       if (isSelectingBox) {
@@ -1789,13 +1911,11 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
         dragX = mx;
         dragY = my;
       }
-    });
+    }
 
-    canvas.addEventListener("mouseup", e => {
-      const rect = canvas.getBoundingClientRect();
-      let sx = e.clientX - rect.left;
-      let sy = e.clientY - rect.top;
-      let { x: mx, y: my } = screenToWorld(sx, sy);
+    function handlePointerUp(e) {
+      e.preventDefault();
+      const { x: mx, y: my } = getPointerPosition(e);
 
       // Handle selection box completion in reopen mode
       if (isSelectingBoxReopen) {
@@ -1961,7 +2081,16 @@ if (dragStartFactory) {
 
   dragStartFactory = null;
 }
-    });
+    }
+
+    // ===== ATTACH BOTH MOUSE AND TOUCH EVENT LISTENERS =====
+    canvas.addEventListener("mousedown", handlePointerDown);
+    canvas.addEventListener("mousemove", handlePointerMove);
+    canvas.addEventListener("mouseup", handlePointerUp);
+    
+    canvas.addEventListener("touchstart", handlePointerDown, { passive: false });
+    canvas.addEventListener("touchmove", handlePointerMove, { passive: false });
+    canvas.addEventListener("touchend", handlePointerUp, { passive: false });
 
     // NEW: Right-click to build factory
     // Right-click as alternative to factory button
@@ -2107,6 +2236,84 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
         reopenButton.style.display = "none";
       }
     }
+    
+    // ==================== GAME STATE SYNC ====================
+function syncGameState() {
+  if (!versusMode) return;
+  
+  mpClient.sendGameUpdate({
+    passengers: totalPassengersServed,
+    money: money,
+    stations: stations.length,
+    trains: trains.length,
+    timestamp: Date.now()
+  });
+}
+
+function updateMatchTimer() {
+  const remaining = matchEndTime - Date.now();
+  
+  if (remaining <= 0) {
+    clearInterval(timerInterval);
+    endMatch(false);
+    return;
+  }
+  
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  
+  document.getElementById('matchTimer').textContent = 
+    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function endMatch(forceWin) {
+  versusMode = false;
+  
+  // Stop syncing
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
+  }
+  
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  
+  // Determine winner
+  const yourValue = forceWin ? 999999 : 
+    (matchRules.winCondition === 'passengers' ? totalPassengersServed :
+     matchRules.winCondition === 'money' ? money :
+     stations.length);
+  
+  const oppValue = forceWin ? 0 :
+    (matchRules.winCondition === 'passengers' ? opponentScore.passengers :
+     matchRules.winCondition === 'money' ? opponentScore.money :
+     opponentScore.stations);
+  
+  const youWin = yourValue > oppValue;
+  
+  // Show winner screen
+  document.getElementById('winnerText').textContent = 
+    youWin ? '🏆 YOU WIN! 🏆' : '💀 YOU LOSE 💀';
+  document.getElementById('winConditionDisplay').textContent = 
+    matchRules.winCondition === 'passengers' ? 'Passengers Served' :
+    matchRules.winCondition === 'money' ? 'Money Earned' :
+    'Stations Built';
+  document.getElementById('yourFinalScore').textContent = yourValue;
+  document.getElementById('oppFinalScore').textContent = oppValue;
+  
+  document.getElementById('winnerScreen').classList.remove('hidden');
+}
+
+function resetGame() {
+  stations = [];
+  trains = [];
+  lines = [];
+  passengers = [];
+  totalPassengersServed = 0;
+  money = 1000;
+}
 
     // ----- Reset -----
     function resetRun() {
@@ -2159,6 +2366,75 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
       spawnInitialCity();
     }
 
+    // ==================== VERSUS MODE INITIALIZATION ====================
+function initializeGameWithSeed(seed) {
+  console.log('🎮 Initializing game with seed:', seed);
+  
+  // Set seeded random for synchronized spawning
+  rng = new SeededRandom(seed);
+  
+  // Reset all game state (same as resetRun)
+  stations = [];
+  trains = [];
+  trainFactories = [];
+  adjacency.clear();
+  edgeMeta.clear();
+  elapsed = 0;
+  score = 0;
+  servedPassengers = 0;
+  totalWaiting = 0;
+  spawnTimer = 0;
+  stationTimer = 0;
+  nextId = 1;
+  nextPassengerId = 1;
+  viewScale = 1;
+  targetViewScale = 1;
+  screenFlash = 0;
+  newStationPulse = null;
+  cameraFocusTimer = 0;
+  focusedStation = null;
+  currentEfficiency = 50;
+  comboMultiplier = 1.0;
+  comboTimer = 0;
+  peakCombo = 1.0;
+  isRushHour = false;
+  rushHourTimer = 0;
+  activeThreats = [];
+  
+  // Reset costs
+  TRAIN_FACTORY_COST = 200;
+  MERGE_COST = 500;
+  
+  // Reset modes
+  mergeMode = false;
+  selectedStationsForMerge = [];
+  mergeButton.textContent = "🔀 Merge Stations ($" + MERGE_COST + ")";
+  mergeButton.style.background = "linear-gradient(135deg, #667eea, #764ba2)";
+  
+  factoryBuildMode = false;
+  updateFactoryButton();
+  
+  reopenMode = false;
+  updateReopenButton();
+  
+  // Apply match rules
+  if (matchRules) {
+    playerMoney = matchRules.startMoney;
+    console.log('💰 Starting money:', playerMoney);
+  } else {
+    playerMoney = 1000; // Default
+  }
+  
+  // Spawn initial city with seeded random
+  // This will use rng.random() which we changed in Step 5
+  spawnInitialCity();
+  
+  // Start the game
+  running = true;
+  lastTime = performance.now();
+  
+  console.log('✅ Game initialized! Stations:', stations.length);
+}
     // ----- Leaderboard -----
     function addToLeaderboard(time, served, stationCount, segmentCount) {
       leaderboard.push({ time, score: served, stations: stationCount, segments: segmentCount });
