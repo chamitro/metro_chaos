@@ -419,6 +419,7 @@
 <div id="winnerScreen" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; z-index: 2000;">
   <div style="text-align: center; padding: 40px; background: rgba(10, 14, 35, 0.9); border-radius: 24px; border: 2px solid rgba(79, 209, 197, 0.3);">
     <h1 id="winnerText" style="font-size: 48px; margin-bottom: 24px;">🏆 YOU WIN! 🏆</h1>
+    <div id="matchEndReason" style="font-size: 18px; margin-bottom: 16px; opacity: 0.8; color: #ffd700;"></div>
     <div style="font-size: 24px; margin-bottom: 16px; opacity: 0.9;">
       <span id="winConditionDisplay">Passengers Served</span>
     </div>
@@ -771,6 +772,13 @@ mpClient.on('MATCH_START', function(data) {
 mpClient.on('OPPONENT_UPDATE', function(data) {
   opponentScore = data;
   
+  // 🚨 CHECK IF OPPONENT LOST (station reached 15 passengers)
+  if (data.maxQueueSize && data.maxQueueSize > 15) {
+    console.log(`🎉 Opponent's station overflowed with ${data.maxQueueSize} passengers! YOU WIN!`);
+    endMatch(true, 'opponent_overflow'); // true = you win!
+    return;
+  }
+  
   // Update basic stats
   document.getElementById('oppPassengers').textContent = data.passengers || 0;
   document.getElementById('oppMoney').textContent = '$' + (data.money || 0);
@@ -823,10 +831,16 @@ mpClient.on('OVERLOAD_ATTACK', function(data) {
   showActionTooltip("💥 OVERLOADED BY OPPONENT!", width/2, 80);
 });
 
+// Handle Opponent Lost (station overflowed)
+mpClient.on('PLAYER_LOST', function(data) {
+  console.log(`🎉 Opponent lost! Reason: ${data.reason}, Station: ${data.stationId}, Queue: ${data.queueSize}`);
+  endMatch(true, `opponent_${data.reason}`); // You win!
+});
+
 // Handle Opponent Left
 mpClient.on('OPPONENT_LEFT', function(data) {
   alert('Opponent disconnected. You win by default!');
-  endMatch(true);
+  endMatch(true, 'disconnect');
 });
 
 // Handle Errors
@@ -3245,6 +3259,14 @@ function syncGameState() {
   // Calculate efficiency
   const efficiency = Math.round(currentEfficiency);
   
+  // Find the fullest station (to check for instant loss condition)
+  let maxQueueSize = 0;
+  for (const st of stations) {
+    if (!st.closed && st.queue.length > maxQueueSize) {
+      maxQueueSize = st.queue.length;
+    }
+  }
+  
   mpClient.sendGameUpdate({
     passengers: servedPassengers,
     money: playerMoney,
@@ -3254,6 +3276,7 @@ function syncGameState() {
     efficiency: efficiency,
     factories: trainFactories.length,
     lastAction: lastAction,
+    maxQueueSize: maxQueueSize,  // NEW: Send fullest station queue
     timestamp: Date.now()
   });
 }
@@ -3265,7 +3288,7 @@ function updateMatchTimer() {
   
   if (remaining <= 0) {
     clearInterval(timerInterval);
-    endMatch(false);
+    endMatch(false, 'timeout'); // Time ran out
     return;
   }
   
@@ -3276,7 +3299,7 @@ function updateMatchTimer() {
     `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function endMatch(forceWin) {
+function endMatch(forceWin, reason) {
   versusMode = false;
   running = false;
   
@@ -3300,6 +3323,21 @@ function endMatch(forceWin) {
   
   document.getElementById('winnerText').textContent = 
     youWin ? '🏆 YOU WIN! 🏆' : '💀 YOU LOSE 💀';
+  
+  // Display match end reason
+  const reasonElement = document.getElementById('matchEndReason');
+  if (reason === 'overflow') {
+    reasonElement.textContent = '🚨 Your station overflowed (>15 passengers)';
+  } else if (reason === 'opponent_overflow') {
+    reasonElement.textContent = '🎉 Opponent\'s station overflowed!';
+  } else if (reason === 'disconnect') {
+    reasonElement.textContent = '🔌 Opponent disconnected';
+  } else if (reason === 'timeout') {
+    reasonElement.textContent = '⏰ Time\'s up!';
+  } else {
+    reasonElement.textContent = ''; // No specific reason
+  }
+  
   document.getElementById('winConditionDisplay').textContent = 
     matchRules.winCondition === 'passengers' ? 'Passengers Served' :
     matchRules.winCondition === 'money' ? 'Money Earned' :
@@ -4640,7 +4678,25 @@ const barHeight = 7
         const limit = currentQueueLimit(st);
         if (st.queue.length > limit) {
           running = false;
-          showGameOver(st);
+          
+          // VERSUS MODE: Instant loss if any station reaches 15 passengers
+          if (versusMode) {
+            console.log(`🚨 Station #${st.id} overflowed with ${st.queue.length} passengers! YOU LOSE!`);
+            
+            // Notify opponent that you lost
+            if (mpClient) {
+              mpClient.send('PLAYER_LOST', {
+                reason: 'overflow',
+                stationId: st.id,
+                queueSize: st.queue.length
+              });
+            }
+            
+            endMatch(false, 'overflow'); // false = you lose, reason = overflow
+          } else {
+            // Survival mode: show game over screen
+            showGameOver(st);
+          }
           break;
         }
       }
