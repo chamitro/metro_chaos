@@ -127,59 +127,6 @@
       pointer-events: none;
       z-index: 50;
     }
-    /* ===== MOBILE HUD OPTIMIZATION ===== */
-    @media screen and (max-width: 768px) {
-      #hud {
-        top: 5px;
-        gap: 8px;
-        padding: 6px 12px;
-        font-size: 11px;
-        max-width: 95%;
-      }
-      
-      #hud .pill {
-        padding: 3px 8px;
-        font-size: 11px;
-      }
-      
-      #hud span.label {
-        margin-right: 3px;
-      }
-      
-      /* Make buttons smaller on mobile */
-      button {
-        padding: 8px 12px !important;
-        min-height: 36px !important;
-        font-size: 12px !important;
-      }
-      
-      /* Smaller hint text */
-      #hint {
-        font-size: 10px;
-        padding: 4px 8px;
-      }
-    }
-
-    /* For very small phones */
-    @media screen and (max-width: 480px) {
-      #hud {
-        gap: 6px;
-        padding: 4px 8px;
-        font-size: 10px;
-      }
-      
-      #hud .pill {
-        padding: 2px 6px;
-        font-size: 10px;
-      }
-      
-      button {
-        padding: 6px 10px !important;
-        min-height: 32px !important;
-        font-size: 11px !important;
-      }
-    }
-
   </style>
 </head>
 <body>
