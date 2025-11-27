@@ -2,14 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Metro Manager – Endless Run</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Metro Manager – Story Mode</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
     html, body {
       width: 100%; height: 100%; overflow: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: radial-gradient(circle at top, #171c32 0, #050812 60%);
       color: #f4f4f6;
+      touch-action: none;
     }
     
     #hud {
@@ -133,9 +146,9 @@
     <div class="pill"><span class="label">Efficiency</span><span id="efficiencyText">50%</span></div>
 <div class="pill" style="background: rgba(255, 200, 0, 0.15);"><span class="label">Combo</span><span id="comboText">×1.0</span></div>
 <div class="pill" id="rushHourPill" style="display: none; background: rgba(255, 50, 50, 0.3);"><span class="label">🚨 RUSH HOUR</span><span id="rushHourText">45s</span></div>
-    <button id="factoryButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #d97943, #c95d2b); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🏭 Build Factory ($200)</button>
-    <button id="reopenButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #48bb78, #38a169); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;">💚 Reopen Station ($200)</button>
-    <button id="mergeButton" style="padding: 6px 12px; border-radius: 999px; border: none; font-size: 13px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🔀 Merge Stations ($500)</button>
+    <button id="factoryButton" style="padding: 10px 16px; min-height: 44px; border-radius: 999px; border: none; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #d97943, #c95d2b); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🏭 Build Factory ($200)</button>
+    <button id="reopenButton" style="padding: 10px 16px; min-height: 44px; border-radius: 999px; border: none; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #48bb78, #38a169); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none;">💚 Reopen Station ($200)</button>
+    <button id="mergeButton" style="padding: 10px 16px; min-height: 44px; border-radius: 999px; border: none; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">🔀 Merge Stations ($500)</button>
   </div>
 
   <!-- Level Objectives Panel -->
@@ -2025,12 +2038,28 @@ function factoryHasFreeCapacity(factory) {
     let dragStartFactory = null; // NEW: Track if dragging from factory
     let dragX = 0, dragY = 0;
 
-    canvas.addEventListener("mousedown", e => {
+    // ===== UNIVERSAL TOUCH/MOUSE HANDLER =====
+    function getPointerPosition(e) {
       const rect = canvas.getBoundingClientRect();
-      let sx = e.clientX - rect.left;
-let sy = e.clientY - rect.top;
-let { x: mx, y: my } = screenToWorld(sx, sy);
+      let clientX, clientY;
+      
+      if (e.type.startsWith('touch')) {
+        const touch = e.touches[0] || e.changedTouches[0];
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+      return screenToWorld(sx, sy);
+    }
 
+    function handlePointerDown(e) {
+      e.preventDefault();
+      const { x: mx, y: my } = getPointerPosition(e);
 
       // REOPEN MODE: Click closed station to reopen
 
@@ -2094,14 +2123,11 @@ if (reopenMode) {
           return;
         }
       }
-    });
+    }
 
-    canvas.addEventListener("mousemove", e => {
-      const rect = canvas.getBoundingClientRect();
-      let sx = e.clientX - rect.left;
-let sy = e.clientY - rect.top;
-let { x: mx, y: my } = screenToWorld(sx, sy);
-
+    function handlePointerMove(e) {
+      e.preventDefault();
+      const { x: mx, y: my } = getPointerPosition(e);
 
       // Update selection box in merge mode
       if (isSelectingBox) {
@@ -2121,13 +2147,11 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
         dragX = mx;
         dragY = my;
       }
-    });
+    }
 
-    canvas.addEventListener("mouseup", e => {
-      const rect = canvas.getBoundingClientRect();
-      let sx = e.clientX - rect.left;
-      let sy = e.clientY - rect.top;
-      let { x: mx, y: my } = screenToWorld(sx, sy);
+    function handlePointerUp(e) {
+      e.preventDefault();
+      const { x: mx, y: my } = getPointerPosition(e);
 
       // Handle selection box completion in reopen mode
       if (isSelectingBoxReopen) {
@@ -2293,7 +2317,16 @@ if (dragStartFactory) {
 
   dragStartFactory = null;
 }
-    });
+    }
+
+    // ===== ATTACH BOTH MOUSE AND TOUCH EVENT LISTENERS =====
+    canvas.addEventListener("mousedown", handlePointerDown);
+    canvas.addEventListener("mousemove", handlePointerMove);
+    canvas.addEventListener("mouseup", handlePointerUp);
+    
+    canvas.addEventListener("touchstart", handlePointerDown, { passive: false });
+    canvas.addEventListener("touchmove", handlePointerMove, { passive: false });
+    canvas.addEventListener("touchend", handlePointerUp, { passive: false });
 
     // NEW: Right-click to build factory
     // Right-click as alternative to factory button
