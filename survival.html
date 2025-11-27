@@ -514,9 +514,6 @@ function getTouchDistance(touches) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-// ===== PINCH TO ZOOM - HANDLED IN handlePointerDown BELOW =====
-// Removed standalone touchstart listener to avoid conflicts
-
 canvas.addEventListener('touchmove', function(e) {
   if (isPinching && e.touches.length === 2) {
     const currentDistance = getTouchDistance(e.touches);
@@ -1716,42 +1713,8 @@ function spawnStationsOverTime(dt) {
     }
 
     function addEdge(a, b) {
-  // ==================== MAX CONNECTIONS CHECK ====================
-  if (versusMode && matchRules && matchRules.maxConnections !== 999) {
-    // Count existing connections
-    const connectionsA = adjacency.has(a) ? adjacency.get(a).length : 0;
-    const connectionsB = adjacency.has(b) ? adjacency.get(b).length : 0;
-    
-    // Block if either station is at limit
-    if (connectionsA >= matchRules.maxConnections) {
-      console.log(`⚠️ Station ${a} has max ${matchRules.maxConnections} connections!`);
-      
-      // Visual feedback (red sparkles)
-      const stA = stations.find(s => s.id === a);
-      if (stA) {
-        spawnSparkles(stA.x, stA.y, 'rgba(255, 100, 100, 1)', 8);
-      }
-      
-      return; // Don't create connection
-    }
-    
-    if (connectionsB >= matchRules.maxConnections) {
-      console.log(`⚠️ Station ${b} has max ${matchRules.maxConnections} connections!`);
-      
-      // Visual feedback (red sparkles)
-      const stB = stations.find(s => s.id === b);
-      if (stB) {
-        spawnSparkles(stB.x, stB.y, 'rgba(255, 100, 100, 1)', 8);
-      }
-      
-      return; // Don't create connection
-    }
-  }
-  // ==================== END CHECK ====================
-  
-  // Original code continues below (DON'T DELETE THIS!)
-  if (!adjacency.has(a)) adjacency.set(a, []);
-  if (!adjacency.has(b)) adjacency.set(b, []);
+      if (!adjacency.has(a)) adjacency.set(a, []);
+      if (!adjacency.has(b)) adjacency.set(b, []);
       if (!adjacency.get(a).includes(b)) adjacency.get(a).push(b);
       if (!adjacency.get(b).includes(a)) adjacency.get(b).push(a);
 
@@ -1805,7 +1768,6 @@ function factoryHasFreeCapacity(factory) {
     }
 
     function handlePointerDown(e) {
-      // Get position BEFORE preventDefault (which might clear touches in some browsers)
       const { x: mx, y: my } = getPointerPosition(e);
       e.preventDefault();
       
@@ -1886,7 +1848,6 @@ if (reopenMode) {
     }
 
     function handlePointerMove(e) {
-      // Get position BEFORE preventDefault
       const { x: mx, y: my } = getPointerPosition(e);
       e.preventDefault();
       
@@ -1916,7 +1877,6 @@ if (reopenMode) {
     }
 
     function handlePointerUp(e) {
-      // Get position BEFORE preventDefault
       const { x: mx, y: my } = getPointerPosition(e);
       e.preventDefault();
 
@@ -2239,84 +2199,6 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
         reopenButton.style.display = "none";
       }
     }
-    
-    // ==================== GAME STATE SYNC ====================
-function syncGameState() {
-  if (!versusMode) return;
-  
-  mpClient.sendGameUpdate({
-    passengers: totalPassengersServed,
-    money: money,
-    stations: stations.length,
-    trains: trains.length,
-    timestamp: Date.now()
-  });
-}
-
-function updateMatchTimer() {
-  const remaining = matchEndTime - Date.now();
-  
-  if (remaining <= 0) {
-    clearInterval(timerInterval);
-    endMatch(false);
-    return;
-  }
-  
-  const minutes = Math.floor(remaining / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-  
-  document.getElementById('matchTimer').textContent = 
-    `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function endMatch(forceWin) {
-  versusMode = false;
-  
-  // Stop syncing
-  if (syncInterval) {
-    clearInterval(syncInterval);
-    syncInterval = null;
-  }
-  
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  
-  // Determine winner
-  const yourValue = forceWin ? 999999 : 
-    (matchRules.winCondition === 'passengers' ? totalPassengersServed :
-     matchRules.winCondition === 'money' ? money :
-     stations.length);
-  
-  const oppValue = forceWin ? 0 :
-    (matchRules.winCondition === 'passengers' ? opponentScore.passengers :
-     matchRules.winCondition === 'money' ? opponentScore.money :
-     opponentScore.stations);
-  
-  const youWin = yourValue > oppValue;
-  
-  // Show winner screen
-  document.getElementById('winnerText').textContent = 
-    youWin ? '🏆 YOU WIN! 🏆' : '💀 YOU LOSE 💀';
-  document.getElementById('winConditionDisplay').textContent = 
-    matchRules.winCondition === 'passengers' ? 'Passengers Served' :
-    matchRules.winCondition === 'money' ? 'Money Earned' :
-    'Stations Built';
-  document.getElementById('yourFinalScore').textContent = yourValue;
-  document.getElementById('oppFinalScore').textContent = oppValue;
-  
-  document.getElementById('winnerScreen').classList.remove('hidden');
-}
-
-function resetGame() {
-  stations = [];
-  trains = [];
-  lines = [];
-  passengers = [];
-  totalPassengersServed = 0;
-  money = 1000;
-}
 
     // ----- Reset -----
     function resetRun() {
@@ -2369,75 +2251,6 @@ function resetGame() {
       spawnInitialCity();
     }
 
-    // ==================== VERSUS MODE INITIALIZATION ====================
-function initializeGameWithSeed(seed) {
-  console.log('🎮 Initializing game with seed:', seed);
-  
-  // Set seeded random for synchronized spawning
-  rng = new SeededRandom(seed);
-  
-  // Reset all game state (same as resetRun)
-  stations = [];
-  trains = [];
-  trainFactories = [];
-  adjacency.clear();
-  edgeMeta.clear();
-  elapsed = 0;
-  score = 0;
-  servedPassengers = 0;
-  totalWaiting = 0;
-  spawnTimer = 0;
-  stationTimer = 0;
-  nextId = 1;
-  nextPassengerId = 1;
-  viewScale = 1;
-  targetViewScale = 1;
-  screenFlash = 0;
-  newStationPulse = null;
-  cameraFocusTimer = 0;
-  focusedStation = null;
-  currentEfficiency = 50;
-  comboMultiplier = 1.0;
-  comboTimer = 0;
-  peakCombo = 1.0;
-  isRushHour = false;
-  rushHourTimer = 0;
-  activeThreats = [];
-  
-  // Reset costs
-  TRAIN_FACTORY_COST = 200;
-  MERGE_COST = 500;
-  
-  // Reset modes
-  mergeMode = false;
-  selectedStationsForMerge = [];
-  mergeButton.textContent = "🔀 Merge Stations ($" + MERGE_COST + ")";
-  mergeButton.style.background = "linear-gradient(135deg, #667eea, #764ba2)";
-  
-  factoryBuildMode = false;
-  updateFactoryButton();
-  
-  reopenMode = false;
-  updateReopenButton();
-  
-  // Apply match rules
-  if (matchRules) {
-    playerMoney = matchRules.startMoney;
-    console.log('💰 Starting money:', playerMoney);
-  } else {
-    playerMoney = 1000; // Default
-  }
-  
-  // Spawn initial city with seeded random
-  // This will use rng.random() which we changed in Step 5
-  spawnInitialCity();
-  
-  // Start the game
-  running = true;
-  lastTime = performance.now();
-  
-  console.log('✅ Game initialized! Stations:', stations.length);
-}
     // ----- Leaderboard -----
     function addToLeaderboard(time, served, stationCount, segmentCount) {
       leaderboard.push({ time, score: served, stations: stationCount, segments: segmentCount });
