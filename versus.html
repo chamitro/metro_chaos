@@ -1063,7 +1063,7 @@ let MERGE_COST = 500;             // will go up by +100 each merge
     const MEDIUM_CONNECTION = 300;
     const LONG_CONNECTION = 450;
     
-    const FACTORY_MAX_CONNECTIONS = 5;
+    const FACTORY_MAX_CONNECTIONS = 3;
     
     // Train fuel system
     const MAX_TRAIN_FUEL = 100;
@@ -1153,8 +1153,8 @@ function updateCameraZoom() {
     // Difficulty scaling
     const BASE_SPAWN_INTERVAL = 5.0; // Slower initial spawn (was 3.0)
     const MIN_SPAWN_INTERVAL = 0.8;
-    const BASE_STATION_INTERVAL = 15;
-    const MIN_STATION_INTERVAL = 8;
+    const BASE_STATION_INTERVAL = 40;
+    const MIN_STATION_INTERVAL = 22;
     const BASE_TRAIN_INTERVAL = 12;
     const MIN_TRAIN_INTERVAL = 6;
     const BASE_QUEUE_LIMIT = 20; // Higher initial limit (was 15)
@@ -1842,7 +1842,7 @@ function spawnStationsOverTime(dt) {
         factory.productionTimer += dt;
         
         // First train is fast (10s), subsequent trains are slower (25s)
-        const interval = factory.trainsProduced === 0 ? 10 : 25;
+        const interval = factory.trainsProduced === 0 ? 10 : 40;
         
         if (factory.productionTimer >= interval) {
           factory.productionTimer = 0;
@@ -3419,7 +3419,7 @@ function render() {
   // Train factories - ENHANCED with glow
   for (const factory of trainFactories) {
     const animScale = 1 + factory.animation * 0.5;
-    const progress = factory.productionTimer / (factory.trainsProduced === 0 ? 10 : 25);
+    const progress = factory.productionTimer / (factory.trainsProduced === 0 ? 10 : 40);
     
     ctx.save();
     ctx.translate(factory.x, factory.y);
@@ -3561,7 +3561,7 @@ function render() {
     ctx.fillRect(-barWidth/2 + 2, barY + 1, (barWidth * progress) - 4, 2);
     
     // Timer text
-    const timeLeft = Math.ceil((factory.trainsProduced === 0 ? 10 : 25) - factory.productionTimer);
+    const timeLeft = Math.ceil((factory.trainsProduced === 0 ? 10 : 40) - factory.productionTimer);
     ctx.fillStyle = "white";
     ctx.font = "bold 11px sans-serif";
     ctx.textAlign = "center";
