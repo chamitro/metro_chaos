@@ -2013,6 +2013,7 @@ function spawnStationsOverTime(dt) {
   if (stationTimer >= interval) {
     stationTimer = 0;
     const margin = 60;
+	const hudMarginTop = 100;
     const MIN_DISTANCE = 120; // Minimum distance between stations
     
     let x, y, attempts = 0;
