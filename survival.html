@@ -791,6 +791,7 @@ function screenToWorld(mx, my) {
     function spawnInitialCity() {
       const count = 4;
       const margin = 80;
+	  const hudMarginTop = 100;
       const MIN_DISTANCE = 150; // Minimum distance between initial stations
       
       // Spawn initial stations with proper spacing
@@ -800,7 +801,7 @@ function screenToWorld(mx, my) {
         
         while (!validPosition && attempts < 100) {
           x = margin + Math.random() * (width - 2 * margin);
-          y = margin + Math.random() * (height - 2 * margin);
+          y = hudMarginTop + rng.random() * (height - hudMarginTop - margin);
           
           validPosition = true;
           for (const st of stations) {
