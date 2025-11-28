@@ -1665,10 +1665,16 @@ function screenToWorld(mx, my) {
     let stationTimer = 0;
     // trainTimer removed - trains only from factories now
 
+    // ===== SAFE SPAWN ZONES - Avoid UI Overlap =====
+    const SAFE_ZONE = {
+      TOP: 120,        // HUD at top (~60px) + extra margin
+      BOTTOM: 100,     // Hints and other UI at bottom
+      LEFT: 100,       // Left margin
+      RIGHT: 250       // Opponent panel (~220px) + margin
+    };
+
     function spawnInitialCity() {
       const count = 4;
-      const margin = 80;
-      const hudMarginTop = 100; // Extra space at top for HUD
       const MIN_DISTANCE = 150; // Minimum distance between initial stations
       
       // Spawn initial stations with proper spacing
@@ -1677,8 +1683,8 @@ function screenToWorld(mx, my) {
         let validPosition = false;
         
         while (!validPosition && attempts < 100) {
-  x = margin + rng.random() * (width - 2 * margin);
-  y = hudMarginTop + rng.random() * (height - hudMarginTop - margin);
+  x = SAFE_ZONE.LEFT + rng.random() * (width - SAFE_ZONE.LEFT - SAFE_ZONE.RIGHT);
+  y = SAFE_ZONE.TOP + rng.random() * (height - SAFE_ZONE.TOP - SAFE_ZONE.BOTTOM);
           
           validPosition = true;
           for (const st of stations) {
@@ -1704,8 +1710,8 @@ function screenToWorld(mx, my) {
         let validPosition = false;
         
         while (!validPosition && attempts < 100) {
-  x = margin + rng.random() * (width - 2 * margin);
-  y = hudMarginTop + rng.random() * (height - hudMarginTop - margin);
+  x = SAFE_ZONE.LEFT + rng.random() * (width - SAFE_ZONE.LEFT - SAFE_ZONE.RIGHT);
+  y = SAFE_ZONE.TOP + rng.random() * (height - SAFE_ZONE.TOP - SAFE_ZONE.BOTTOM);
           
           validPosition = true;
           // Check distance from stations
@@ -2033,8 +2039,6 @@ function spawnStationsOverTime(dt) {
   const interval = currentStationInterval();
   if (stationTimer >= interval) {
     stationTimer = 0;
-    const margin = 60;
-	const hudMarginTop = 100;
     const MIN_DISTANCE = 120; // Minimum distance between stations
     
     let x, y, attempts = 0;
@@ -2042,8 +2046,8 @@ function spawnStationsOverTime(dt) {
     
     // Try to find a position that's not too close to existing stations
     while (!validPosition && attempts < 100) {
-  x = margin + rng.random() * (width - 2 * margin);
-  y = hudMarginTop + rng.random() * (height - hudMarginTop - margin);
+  x = SAFE_ZONE.LEFT + rng.random() * (width - SAFE_ZONE.LEFT - SAFE_ZONE.RIGHT);
+  y = SAFE_ZONE.TOP + rng.random() * (height - SAFE_ZONE.TOP - SAFE_ZONE.BOTTOM);
       
       validPosition = true;
       for (const st of stations) {
