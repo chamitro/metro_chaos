@@ -739,18 +739,35 @@ const QUICK_MATCH_RULES = {
 function startQuickMatch() {
   console.log('🔍 Starting Quick Match search...');
   
-  // First, try to find an existing Quick Match room
-  mpClient.send('FIND_QUICK_MATCH', QUICK_MATCH_RULES);
+  let searchAttempts = 0;
+  const MAX_SEARCH_ATTEMPTS = 3;
+  const SEARCH_INTERVAL = 3000; // Search every 3 seconds
   
-  // If no room found in 3 seconds, create one
-  setTimeout(() => {
-    if (!quickMatchRoomCode) {
-      console.log('💡 No existing room found, creating Quick Match room...');
-      isHost = true;
-      matchRules = QUICK_MATCH_RULES;
-      mpClient.createRoom(QUICK_MATCH_RULES, 'Player');
+  function searchForRoom() {
+    searchAttempts++;
+    console.log(`🔍 Search attempt ${searchAttempts}/${MAX_SEARCH_ATTEMPTS}...`);
+    
+    // Send search request to server
+    mpClient.send('FIND_QUICK_MATCH', QUICK_MATCH_RULES);
+    
+    // If still no room after all attempts, create one
+    if (searchAttempts >= MAX_SEARCH_ATTEMPTS) {
+      setTimeout(() => {
+        if (!quickMatchRoomCode) {
+          console.log('💡 No room found after multiple searches, creating Quick Match room...');
+          isHost = true;
+          matchRules = QUICK_MATCH_RULES;
+          mpClient.createRoom(QUICK_MATCH_RULES, 'Player');
+        }
+      }, 1000);
+    } else {
+      // Try again after interval
+      setTimeout(searchForRoom, SEARCH_INTERVAL);
     }
-  }, 3000);
+  }
+  
+  // Start first search immediately
+  searchForRoom();
 }
 
 // Connect when page loads
@@ -759,6 +776,9 @@ function startQuickMatch() {
 document.getElementById('quickMatchBtn').addEventListener('click', function() {
   document.getElementById('modeSelection').classList.add('hidden');
   document.getElementById('quickMatchScreen').classList.remove('hidden');
+  
+  // Reset for new search
+  quickMatchRoomCode = null;
   
   // Start quick match with fixed rules
   startQuickMatch();
@@ -770,6 +790,8 @@ document.getElementById('cancelQuickMatchBtn').addEventListener('click', functio
     clearInterval(quickMatchAttemptId);
     quickMatchAttemptId = null;
   }
+  
+  quickMatchRoomCode = null; // Reset room code
   
   document.getElementById('quickMatchScreen').classList.add('hidden');
   document.getElementById('modeSelection').classList.remove('hidden');
@@ -847,6 +869,7 @@ mpClient.on('MATCH_FOUND', function(data) {
   isHost = data.isHost;
   roomCode = data.roomCode;
   matchRules = data.rules;
+  quickMatchRoomCode = data.roomCode; // Stop searching - match found!
   
   // Hide ALL previous screens
   document.getElementById('createMatchScreen').classList.add('hidden');
