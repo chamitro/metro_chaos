@@ -225,6 +225,20 @@
   border-radius: 8px;
   margin-bottom: 8px;
 }
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(79, 209, 197, 0.2);
+  border-top: 4px solid #4fd1c5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 /* ===== END LOBBY STYLES ===== */
 /* NEW: Tooltip for station/factory actions */
 
@@ -253,6 +267,59 @@
       pointer-events: none;
       z-index: 50;
     }
+    /* ===== MOBILE HUD OPTIMIZATION ===== */
+    @media screen and (max-width: 768px) {
+      #hud {
+        top: 5px;
+        gap: 8px;
+        padding: 6px 12px;
+        font-size: 11px;
+        max-width: 95%;
+      }
+      
+      #hud .pill {
+        padding: 3px 8px;
+        font-size: 11px;
+      }
+      
+      #hud span.label {
+        margin-right: 3px;
+      }
+      
+      /* Make buttons smaller on mobile */
+      button {
+        padding: 8px 12px !important;
+        min-height: 36px !important;
+        font-size: 12px !important;
+      }
+      
+      /* Smaller hint text */
+      #hint {
+        font-size: 10px;
+        padding: 4px 8px;
+      }
+    }
+
+    /* For very small phones */
+    @media screen and (max-width: 480px) {
+      #hud {
+        gap: 6px;
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+      
+      #hud .pill {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+      
+      button {
+        padding: 6px 10px !important;
+        min-height: 32px !important;
+        font-size: 11px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -264,8 +331,14 @@
     <!-- Mode Selection -->
     <div id="modeSelection">
       <div class="button-group">
+        <button class="btn btn-primary" id="quickMatchBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); font-size: 16px; padding: 16px 24px;">⚡ Quick Match ⚡</button>
+      </div>
+      <div class="button-group" style="margin-top: 12px;">
         <button class="btn btn-primary" id="createMatchBtn">Create Match</button>
         <button class="btn btn-secondary" id="joinMatchBtn">Join Match</button>
+      </div>
+      <div style="margin-top: 12px; font-size: 12px; opacity: 0.7; text-align: center;">
+        Quick Match: 10 min | Passengers | 3 connections | $0 start
       </div>
     </div>
     
@@ -308,6 +381,26 @@
         <div id="roomCode">ABC123</div>
         <p style="font-size: 12px; opacity: 0.7; margin-top: 8px;">Waiting for opponent to join...</p>
       </div>
+    </div>
+    
+    <!-- Quick Match Screen -->
+    <div id="quickMatchScreen" class="hidden">
+      <div class="lobby-section" style="text-align: center;">
+        <h3>⚡ Quick Match</h3>
+        <div style="margin: 24px 0; font-size: 14px; opacity: 0.9;">
+          <div style="margin: 8px 0;">⏱️ Duration: <strong>10 minutes</strong></div>
+          <div style="margin: 8px 0;">🎯 Win: <strong>Most Passengers Served</strong></div>
+          <div style="margin: 8px 0;">🔗 Max Connections: <strong>3 per station</strong></div>
+          <div style="margin: 8px 0;">💰 Starting Money: <strong>$0</strong></div>
+        </div>
+        
+        <div id="quickMatchStatus" style="margin: 24px 0;">
+          <div style="font-size: 16px; color: #4fd1c5; margin-bottom: 12px;">🔍 Searching for opponent...</div>
+          <div class="spinner" style="margin: 0 auto;"></div>
+        </div>
+      </div>
+      
+      <button class="btn btn-secondary" id="cancelQuickMatchBtn" style="width: 100%;">Cancel</button>
     </div>
     
     <!-- Join Match Screen -->
@@ -631,9 +724,57 @@ function recordAction(action) {
   lastActionTime = Date.now();
 }
 
+// ==================== QUICK MATCH SYSTEM ====================
+let quickMatchAttemptId = null;
+let quickMatchRoomCode = null;
+
+const QUICK_MATCH_RULES = {
+  duration: 10,           // 10 minutes
+  winCondition: 'passengers',  // Most passengers served
+  maxConnections: 3,      // 3 connections per station
+  startMoney: 0,          // $0 starting money
+  difficulty: 1.0
+};
+
+function startQuickMatch() {
+  console.log('🔍 Starting Quick Match search...');
+  
+  // First, try to find an existing Quick Match room
+  mpClient.send('FIND_QUICK_MATCH', QUICK_MATCH_RULES);
+  
+  // If no room found in 3 seconds, create one
+  setTimeout(() => {
+    if (!quickMatchRoomCode) {
+      console.log('💡 No existing room found, creating Quick Match room...');
+      isHost = true;
+      matchRules = QUICK_MATCH_RULES;
+      mpClient.createRoom(QUICK_MATCH_RULES, 'Player');
+    }
+  }, 3000);
+}
+
 // Connect when page loads
 
 // ==================== LOBBY BUTTON HANDLERS ====================
+document.getElementById('quickMatchBtn').addEventListener('click', function() {
+  document.getElementById('modeSelection').classList.add('hidden');
+  document.getElementById('quickMatchScreen').classList.remove('hidden');
+  
+  // Start quick match with fixed rules
+  startQuickMatch();
+});
+
+document.getElementById('cancelQuickMatchBtn').addEventListener('click', function() {
+  // Cancel quick match and go back
+  if (quickMatchAttemptId) {
+    clearInterval(quickMatchAttemptId);
+    quickMatchAttemptId = null;
+  }
+  
+  document.getElementById('quickMatchScreen').classList.add('hidden');
+  document.getElementById('modeSelection').classList.remove('hidden');
+});
+
 document.getElementById('createMatchBtn').addEventListener('click', function() {
   document.getElementById('modeSelection').classList.add('hidden');
   document.getElementById('createMatchScreen').classList.remove('hidden');
@@ -675,9 +816,15 @@ mpClient.on('ROOM_CREATED', function(data) {
   console.log('✅ Room created:', data.roomCode);
   roomCode = data.roomCode;
   matchRules = data.rules;
+  quickMatchRoomCode = data.roomCode;
   
   document.getElementById('roomCode').textContent = data.roomCode;
   document.getElementById('roomCodeDisplay').classList.remove('hidden');
+});
+
+mpClient.on('NO_QUICK_MATCH_FOUND', function(data) {
+  console.log('❌ No Quick Match found, will create room automatically...');
+  // The startQuickMatch function already handles creating a room after 3 seconds
 });
 
 // Join Room
@@ -701,9 +848,10 @@ mpClient.on('MATCH_FOUND', function(data) {
   roomCode = data.roomCode;
   matchRules = data.rules;
   
-  // Hide previous screens
+  // Hide ALL previous screens
   document.getElementById('createMatchScreen').classList.add('hidden');
   document.getElementById('joinMatchScreen').classList.add('hidden');
+  document.getElementById('quickMatchScreen').classList.add('hidden');
   
   // Show match found screen
   document.getElementById('matchFoundScreen').classList.remove('hidden');
@@ -1499,7 +1647,7 @@ function screenToWorld(mx, my) {
     function spawnInitialCity() {
       const count = 4;
       const margin = 80;
-      const hudMarginTop = 100;
+      const hudMarginTop = 100; // Extra space at top for HUD
       const MIN_DISTANCE = 150; // Minimum distance between initial stations
       
       // Spawn initial stations with proper spacing
@@ -1536,7 +1684,7 @@ function screenToWorld(mx, my) {
         
         while (!validPosition && attempts < 100) {
   x = margin + rng.random() * (width - 2 * margin);
-  y = margin + rng.random() * (height - 2 * margin);
+  y = hudMarginTop + rng.random() * (height - hudMarginTop - margin);
           
           validPosition = true;
           // Check distance from stations
@@ -1873,7 +2021,7 @@ function spawnStationsOverTime(dt) {
     // Try to find a position that's not too close to existing stations
     while (!validPosition && attempts < 100) {
   x = margin + rng.random() * (width - 2 * margin);
-  y = margin + rng.random() * (height - 2 * margin);
+  y = hudMarginTop + rng.random() * (height - hudMarginTop - margin);
       
       validPosition = true;
       for (const st of stations) {
