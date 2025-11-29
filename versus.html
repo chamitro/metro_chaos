@@ -791,7 +791,14 @@ document.getElementById('cancelQuickMatchBtn').addEventListener('click', functio
     quickMatchAttemptId = null;
   }
   
+  // CRITICAL FIX: If we created a room but haven't matched yet (still in quick match screen), delete it!
+  if (quickMatchRoomCode && isHost) {
+    console.log('🗑️ Canceling Quick Match - deleting empty room:', quickMatchRoomCode);
+    mpClient.send('DELETE_ROOM', { roomCode: quickMatchRoomCode });
+  }
+  
   quickMatchRoomCode = null; // Reset room code
+  isHost = false; // Reset host status
   
   document.getElementById('quickMatchScreen').classList.add('hidden');
   document.getElementById('modeSelection').classList.remove('hidden');
