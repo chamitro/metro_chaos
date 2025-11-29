@@ -1672,7 +1672,7 @@ function screenToWorld(mx, my) {
       TOP: 110,        // HUD + buttons (now smaller!) + safe margin
       BOTTOM: 60,      // Hints at bottom (minimal margin)
       LEFT: 60,        // Left margin (minimal)
-      RIGHT: 280       // Opponent panel (~180px min-width, can grow to ~240px) + safe margin
+      RIGHT: 60        // Right margin (minimal - opponent panel floats on top)
     };
 
     function spawnInitialCity() {
@@ -2603,6 +2603,15 @@ function spawnStationsOverTime(dt) {
     }
 
     function addEdge(a, b) {
+      // CRITICAL: Check capacity BEFORE modifying adjacency lists
+      // This prevents connections from being added when either station is full
+      if (!stationHasFreeCapacity(a)) {
+        return; // Block if source station is full
+      }
+      if (!stationHasFreeCapacity(b)) {
+        return; // Block if target station is full
+      }
+      
       if (!adjacency.has(a)) adjacency.set(a, []);
       if (!adjacency.has(b)) adjacency.set(b, []);
       if (!adjacency.get(a).includes(b)) adjacency.get(a).push(b);
@@ -2636,23 +2645,6 @@ function factoryHasFreeCapacity(factory) {
   return factoryConnectionCount(factory) < FACTORY_MAX_CONNECTIONS;
 }
 
-// ----- Station connection limit helpers -----
-function getStationConnectionCount(stationId) {
-  let count = 0;
-  if (adjacency.has(stationId)) {
-    count = adjacency.get(stationId).length;
-  }
-  return count;
-}
-
-function stationHasFreeCapacity(stationId) {
-  // Check if matchRules exists and has maxConnections setting
-  if (matchRules && matchRules.maxConnections && matchRules.maxConnections !== 999) {
-    return getStationConnectionCount(stationId) < matchRules.maxConnections;
-  }
-  // If unlimited or no rules, always allow
-  return true;
-}
 
     // ----- Mouse / drawing -----
     let isDragging = false;
@@ -2896,15 +2888,6 @@ return;
           const dy = my - st.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 20) {
-            // Check if BOTH stations have free capacity
-            if (!stationHasFreeCapacity(dragStartStation.id)) {
-              showActionTooltip(`Station is full (max ${matchRules.maxConnections} connections)`, mx, my - 40);
-              break;
-            }
-            if (!stationHasFreeCapacity(st.id)) {
-              showActionTooltip(`Target station is full (max ${matchRules.maxConnections} connections)`, mx, my - 40);
-              break;
-            }
             addEdge(dragStartStation.id, st.id);
             break;
           }
