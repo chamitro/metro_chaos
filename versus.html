@@ -742,8 +742,15 @@ function startQuickMatch() {
   let searchAttempts = 0;
   const MAX_SEARCH_ATTEMPTS = 3;
   const SEARCH_INTERVAL = 3000; // Search every 3 seconds
+  let searchTimeoutId = null;
   
   function searchForRoom() {
+    // If already matched, stop searching
+    if (quickMatchRoomCode) {
+      console.log('✅ Already matched, stopping search');
+      return;
+    }
+    
     searchAttempts++;
     console.log(`🔍 Search attempt ${searchAttempts}/${MAX_SEARCH_ATTEMPTS}...`);
     
@@ -752,7 +759,7 @@ function startQuickMatch() {
     
     // If still no room after all attempts, create one
     if (searchAttempts >= MAX_SEARCH_ATTEMPTS) {
-      setTimeout(() => {
+      searchTimeoutId = setTimeout(() => {
         if (!quickMatchRoomCode) {
           console.log('💡 No room found after multiple searches, creating Quick Match room...');
           isHost = true;
@@ -762,12 +769,15 @@ function startQuickMatch() {
       }, 1000);
     } else {
       // Try again after interval
-      setTimeout(searchForRoom, SEARCH_INTERVAL);
+      searchTimeoutId = setTimeout(searchForRoom, SEARCH_INTERVAL);
     }
   }
   
   // Start first search immediately
   searchForRoom();
+  
+  // Store timeout ID for cancellation
+  quickMatchAttemptId = searchTimeoutId;
 }
 
 // Connect when page loads
@@ -872,11 +882,17 @@ document.getElementById('joinRoomBtn').addEventListener('click', function() {
 // Handle Match Found
 mpClient.on('MATCH_FOUND', function(data) {
   console.log('🎮 Match found!', data);
+  console.log('   Room code:', data.roomCode);
+  console.log('   Is host:', data.isHost);
+  console.log('   Host name:', data.hostName);
+  console.log('   Opponent name:', data.opponentName);
   
   isHost = data.isHost;
   roomCode = data.roomCode;
   matchRules = data.rules;
   quickMatchRoomCode = data.roomCode; // Stop searching - match found!
+  
+  console.log('✅ Quick Match found! Setting quickMatchRoomCode to:', quickMatchRoomCode);
   
   // Hide ALL previous screens
   document.getElementById('createMatchScreen').classList.add('hidden');
