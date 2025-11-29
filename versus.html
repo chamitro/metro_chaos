@@ -2654,10 +2654,22 @@ function factoryHasFreeCapacity(factory) {
 
 // ----- Station connection limit helpers -----
 function getStationConnectionCount(stationId) {
+  // Count ONLY station-to-station connections (exclude factory connections)
   let count = 0;
+  
   if (adjacency.has(stationId)) {
-    count = adjacency.get(stationId).length;
+    const connections = adjacency.get(stationId);
+    
+    // Count only connections to OTHER STATIONS (not factories)
+    for (const neighborId of connections) {
+      // Check if neighbor is a station (exists in stations array)
+      const isStation = stations.find(s => s.id === neighborId);
+      if (isStation) {
+        count++;
+      }
+    }
   }
+  
   return count;
 }
 
