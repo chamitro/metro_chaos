@@ -1676,10 +1676,10 @@ function screenToWorld(mx, my) {
 
     // ===== SAFE SPAWN ZONES - Avoid UI Overlap =====
     const SAFE_ZONE = {
-      TOP: 110,        // HUD + buttons (now smaller!) + safe margin
-      BOTTOM: 60,      // Hints at bottom (minimal margin)
-      LEFT: 60,        // Left margin (minimal)
-      RIGHT: 60        // Right margin (minimal - opponent panel floats on top)
+      TOP: 140,        // HUD (35px) + Buttons (32px) + Timer (30px) + margins = ~140px
+      BOTTOM: 80,      // Hints + margin (make room for bottom UI)
+      LEFT: 80,        // Comfortable left margin
+      RIGHT: 300       // Opponent panel (~240px max width) + extra clearance
     };
 
     function spawnInitialCity() {
