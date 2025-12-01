@@ -338,7 +338,7 @@
         <button class="btn btn-secondary" id="joinMatchBtn">Join Friend Match</button>
       </div>
       <div style="margin-top: 12px; font-size: 12px; opacity: 0.7; text-align: center;">
-        Quick Match: 10 min | Passengers | 3 connections | $200 start
+        Quick Match: 10 min | Passengers | 3 connections | $0 start
       </div>
     </div>
     
@@ -710,7 +710,7 @@ let timerInterval = null;
 
 let opponentScore = {
   passengers: 0,
-  money: 200,
+  money: 0,
   stations: 0,
   trains: 0
 };
@@ -732,7 +732,7 @@ const QUICK_MATCH_RULES = {
   duration: 10,           // 10 minutes
   winCondition: 'passengers',  // Most passengers served
   maxConnections: 3,      // 3 connections per station
-  startMoney: 200,          // $200 starting money
+  startMoney: 0,          // $0 starting money
   difficulty: 1.0
 };
 
@@ -742,15 +742,8 @@ function startQuickMatch() {
   let searchAttempts = 0;
   const MAX_SEARCH_ATTEMPTS = 3;
   const SEARCH_INTERVAL = 3000; // Search every 3 seconds
-  let searchTimeoutId = null;
   
   function searchForRoom() {
-    // If already matched, stop searching
-    if (quickMatchRoomCode) {
-      console.log('✅ Already matched, stopping search');
-      return;
-    }
-    
     searchAttempts++;
     console.log(`🔍 Search attempt ${searchAttempts}/${MAX_SEARCH_ATTEMPTS}...`);
     
@@ -759,7 +752,7 @@ function startQuickMatch() {
     
     // If still no room after all attempts, create one
     if (searchAttempts >= MAX_SEARCH_ATTEMPTS) {
-      searchTimeoutId = setTimeout(() => {
+      setTimeout(() => {
         if (!quickMatchRoomCode) {
           console.log('💡 No room found after multiple searches, creating Quick Match room...');
           isHost = true;
@@ -769,15 +762,12 @@ function startQuickMatch() {
       }, 1000);
     } else {
       // Try again after interval
-      searchTimeoutId = setTimeout(searchForRoom, SEARCH_INTERVAL);
+      setTimeout(searchForRoom, SEARCH_INTERVAL);
     }
   }
   
   // Start first search immediately
   searchForRoom();
-  
-  // Store timeout ID for cancellation
-  quickMatchAttemptId = searchTimeoutId;
 }
 
 // Connect when page loads
@@ -801,14 +791,7 @@ document.getElementById('cancelQuickMatchBtn').addEventListener('click', functio
     quickMatchAttemptId = null;
   }
   
-  // CRITICAL FIX: If we created a room but haven't matched yet (still in quick match screen), delete it!
-  if (quickMatchRoomCode && isHost) {
-    console.log('🗑️ Canceling Quick Match - deleting empty room:', quickMatchRoomCode);
-    mpClient.send('DELETE_ROOM', { roomCode: quickMatchRoomCode });
-  }
-  
   quickMatchRoomCode = null; // Reset room code
-  isHost = false; // Reset host status
   
   document.getElementById('quickMatchScreen').classList.add('hidden');
   document.getElementById('modeSelection').classList.remove('hidden');
@@ -882,17 +865,11 @@ document.getElementById('joinRoomBtn').addEventListener('click', function() {
 // Handle Match Found
 mpClient.on('MATCH_FOUND', function(data) {
   console.log('🎮 Match found!', data);
-  console.log('   Room code:', data.roomCode);
-  console.log('   Is host:', data.isHost);
-  console.log('   Host name:', data.hostName);
-  console.log('   Opponent name:', data.opponentName);
   
   isHost = data.isHost;
   roomCode = data.roomCode;
   matchRules = data.rules;
   quickMatchRoomCode = data.roomCode; // Stop searching - match found!
-  
-  console.log('✅ Quick Match found! Setting quickMatchRoomCode to:', quickMatchRoomCode);
   
   // Hide ALL previous screens
   document.getElementById('createMatchScreen').classList.add('hidden');
@@ -1306,7 +1283,7 @@ window.addEventListener('load', () => {
     let totalWaiting = 0;
 
     // NEW: Player money
-    let playerMoney = 200;
+    let playerMoney = 0;
 const MAX_REOPEN_STATIONS = 10;
 let REOPEN_BUNDLE_COST = 150;  // will increase by +100 each use
 
@@ -1692,10 +1669,10 @@ function screenToWorld(mx, my) {
 
     // ===== SAFE SPAWN ZONES - Avoid UI Overlap =====
     const SAFE_ZONE = {
-      TOP: 140,        // HUD (35px) + Buttons (32px) + Timer (30px) + margins = ~140px
-      BOTTOM: 80,      // Hints + margin (make room for bottom UI)
-      LEFT: 80,        // Comfortable left margin
-      RIGHT: 300       // Opponent panel (~240px max width) + extra clearance
+      TOP: 110,        // HUD + buttons (now smaller!) + safe margin
+      BOTTOM: 60,      // Hints at bottom (minimal margin)
+      LEFT: 60,        // Left margin (minimal)
+      RIGHT: 280       // Opponent panel (~180px min-width, can grow to ~240px) + safe margin
     };
 
     function spawnInitialCity() {
@@ -2626,15 +2603,6 @@ function spawnStationsOverTime(dt) {
     }
 
     function addEdge(a, b) {
-      // CRITICAL: Check capacity BEFORE modifying adjacency lists
-      // This prevents connections from being added when either station is full
-      if (!stationHasFreeCapacity(a)) {
-        return; // Block if source station is full
-      }
-      if (!stationHasFreeCapacity(b)) {
-        return; // Block if target station is full
-      }
-      
       if (!adjacency.has(a)) adjacency.set(a, []);
       if (!adjacency.has(b)) adjacency.set(b, []);
       if (!adjacency.get(a).includes(b)) adjacency.get(a).push(b);
@@ -2670,22 +2638,10 @@ function factoryHasFreeCapacity(factory) {
 
 // ----- Station connection limit helpers -----
 function getStationConnectionCount(stationId) {
-  // Count ONLY station-to-station connections (exclude factory connections)
   let count = 0;
-  
   if (adjacency.has(stationId)) {
-    const connections = adjacency.get(stationId);
-    
-    // Count only connections to OTHER STATIONS (not factories)
-    for (const neighborId of connections) {
-      // Check if neighbor is a station (exists in stations array)
-      const isStation = stations.find(s => s.id === neighborId);
-      if (isStation) {
-        count++;
-      }
-    }
+    count = adjacency.get(stationId).length;
   }
-  
   return count;
 }
 
@@ -2940,6 +2896,15 @@ return;
           const dy = my - st.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 20) {
+            // Check if BOTH stations have free capacity
+            if (!stationHasFreeCapacity(dragStartStation.id)) {
+              showActionTooltip(`Station is full (max ${matchRules.maxConnections} connections)`, mx, my - 40);
+              break;
+            }
+            if (!stationHasFreeCapacity(st.id)) {
+              showActionTooltip(`Target station is full (max ${matchRules.maxConnections} connections)`, mx, my - 40);
+              break;
+            }
             addEdge(dragStartStation.id, st.id);
             break;
           }
@@ -3338,7 +3303,7 @@ let { x: mx, y: my } = screenToWorld(sx, sy);
       score = 0;
       servedPassengers = 0;
       totalWaiting = 0;
-      playerMoney = 200; // NEW
+      playerMoney = 0; // NEW
       spawnTimer = 0;
       stationTimer = 0;
       // trainTimer removed - trains only from factories
