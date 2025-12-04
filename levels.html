@@ -184,7 +184,7 @@
 </head>
 <body>
   <div id="hud">
-    <div class="pill" style="background: rgba(79, 209, 197, 0.2);"><span class="label">📍 Level</span><span id="levelText">1</span></div>
+    <div class="pill" style="background: rgba(79, 209, 197, 0.2);"><span class="label">📍 </span><span id="levelText">1</span></div>
     <div class="pill"><span class="label">Time</span><span id="timeText">0.0</span>s</div>
     <div class="pill"><span class="label">Score</span><span id="scoreText">0</span></div>
     <div class="pill"><span class="label">👥 Served</span><span id="servedText">0</span></div>
@@ -531,7 +531,6 @@
       } else if (level === 5) {
         config.name = "Growth Phase";
         config.objectives = [
-          { type: "build_stations", target: 3, current: 0, desc: "Build 3 new stations" },
           { type: "serve", target: 50, current: 0, desc: "Serve 50 passengers" }
         ];
       } else if (level === 6) {
@@ -577,32 +576,32 @@
         config.maxConnectionsPerStation = 3;
         config.startMoney = 500;
         config.objectives = [
-          { type: "money", target: 5000, current: 0, desc: "Earn $5000" }
+          { type: "money", target: 2200, current: 0, desc: "Earn $5000" }
         ];
       } else if (level === 14) {
         config.name = "Limited Connections IV";
         config.maxConnectionsPerStation = 3;
         config.objectives = [
-          { type: "merge_stations", target: 2, current: 0, desc: "Create 2 merged stations" }
+          { type: "merge_stations", target: 3, current: 0, desc: "Create 2 merged stations" }
         ];
       } else if (level === 15) {
         config.name = "Limited Connections V";
         config.maxConnectionsPerStation = 3;
         config.objectives = [
-          { type: "survive_rushes", target: 5, current: 0, desc: "Survive 5 rush hours" }
+          { type: "survive_rushes", target: 6, current: 0, desc: "Survive 5 rush hours" }
         ];
       } else if (level === 16) {
         config.name = "Limited Connections VI";
         config.maxConnectionsPerStation = 3;
         config.objectives = [
-          { type: "merge_stations", target: 3, current: 0, desc: "Create 3 merged stations" }
+          { type: "merge_stations", target: 4, current: 0, desc: "Create 3 merged stations" }
         ];
       } else if (level === 17) {
         config.name = "Limited Connections VII";
         config.maxConnectionsPerStation = 3;
         config.timeLimit = 600; // 10 minutes
         config.objectives = [
-          { type: "survive_time", target: 600, current: 0, desc: "Survive for 10 minutes" }
+          { type: "survive_time", target: 1000, current: 0, desc: "Survive for 10 minutes" }
         ];
       } else if (level === 18) {
         config.name = "Limited Connections VIII";
@@ -616,13 +615,14 @@
         config.name = "Limited Connections IX";
         config.maxConnectionsPerStation = 3;
         config.objectives = [
-          { type: "merge_stations", target: 4, current: 0, desc: "Create 4 merged stations" }
+          { type: "merge_stations", target: 4, current: 0, desc: "Create 4 merged stations" },
+		  { type: "zero_closures", target: 1, current: 0, desc: "No closed stations at end" }
         ];
       } else if (level === 20) {
         config.name = "🏆 THE FINAL CHALLENGE 🏆";
         config.maxConnectionsPerStation = 3;
         config.objectives = [
-          { type: "serve", target: 5000, current: 0, desc: "Serve 5000 passengers" },
+          { type: "serve", target: 3000, current: 0, desc: "Serve 5000 passengers" },
           { type: "zero_closures", target: 1, current: 0, desc: "No closed stations at end" }
         ];
       }
