@@ -1,4 +1,4 @@
-**Game Title: Metro Chaos**
+**Metro Chaos**
 
 **Playable Link:** [https://chamitro.github.io/metro\_chaos/](https://chamitro.github.io/metro_chaos/)
 
